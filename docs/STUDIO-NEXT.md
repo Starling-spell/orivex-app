@@ -1,6 +1,6 @@
 # Studio Next docs
 
-Use the [live Agent Lab](https://orivex-app-starling-spell.vercel.app/#deploy) to submit and inspect evidence proofs on Studio Next.
+Use the [live Agent Lab](https://orivexapp.vercel.app/#deploy) to submit and inspect evidence proofs on Studio Next.
 
 ## Verified deployment
 
