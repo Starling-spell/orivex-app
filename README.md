@@ -1,4 +1,4 @@
-# Orivex Protocol
+# Orivex App
 
 Frontend MVP for **Proof of Intelligent Action**. The landing page uses a Vite/React GenLayer StudioNet agent lab. Open it through the development server, not directly from disk.
 
@@ -54,7 +54,7 @@ The first command estimates gas without sending. The broadcast command prompts t
 
 The Agent Lab now reads and writes on **chain 61997**, using the canonical studio-dev RPC and preview SDK. Contract: [0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8](https://explorer-studio-dev.genlayer.com/address/0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8). A real document claim completed submission and decentralized judgment with **SUCCESS**; all three transactions finalized successfully.
 
-See [the current runbook and proof](docs/STUDIO-NEXT.md), [deployment manifest](deployments/genlayer-studio-next.json), and [live Lab](https://orivex-protocol.vercel.app/#deploy).
+See [the current runbook and proof](docs/STUDIO-NEXT.md), [deployment manifest](deployments/genlayer-studio-next.json), and [live Lab](https://orivex-app-starling-spell.vercel.app/#deploy).
 
 The old StudioNet 61999 manifests and examples are historical only; they are not loaded by the current Lab. The protocol-fee estimate is included in every Studio Next write. Claims bind evidence bytes, criterion, signer, chain and contract; they do not establish agent identity or settle Base certificates.
 
