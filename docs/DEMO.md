@@ -1,4 +1,4 @@
-> Current reviewer path: [Studio Next 61997](STUDIO-NEXT.md), contract [0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8](https://explorer-studio-dev.genlayer.com/address/0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8), verified SUCCESS proof #1. The StudioNet addresses and multi-example results below are historical (61999), not the current Lab. Use the current runbook for commands.
+> Current reviewer path: [Studio Next 61997](STUDIO-NEXT.md), contract [0xE3B42ae4623D6f746a43487184C92834a3Ae85DC](https://explorer-studio-dev.genlayer.com/address/0xE3B42ae4623D6f746a43487184C92834a3Ae85DC), verified SUCCESS proof #1 and task credential #1. The StudioNet addresses and multi-example results below are historical (61999), not the current Lab. Use the current runbook for commands.
 
 # Three-minute demo
 

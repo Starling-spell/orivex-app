@@ -1,13 +1,7 @@
 # v0.2.0
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
-"""Consensus-backed evidence proofs for Orivex agent actions.
-
-The frontend owns authentication and indexing. This contract owns the
-appealable, validator-agreed judgment over a content-addressed evidence URL.
-The URL and SHA-256 are supplied as inputs, but validators fetch the document
-independently; a frontend cannot rubber-stamp its own result.
-"""
+"""Requester-defined tasks and consensus-backed agent credentials."""
 
 from genlayer import *
 import hashlib
@@ -53,6 +47,9 @@ class OrivexProofRegistry(gl.Contract):
     next_proof_id: u256
     proof_records: TreeMap[u256, str]
     reference_ids: TreeMap[str, u256]
+    task_records: TreeMap[str, str]
+    credentials: TreeMap[str, u256]
+    verified_counts: TreeMap[str, u256]
 
     def __init__(self):
         self.next_proof_id = 1
@@ -63,27 +60,45 @@ class OrivexProofRegistry(gl.Contract):
         return self.proof_records[proof_id]
 
     @gl.public.write
+    def create_task(self, task_id: str, agent: Address, claim: str, criterion: str) -> str:
+        if not task_id.strip() or len(task_id) > 128 or task_id in self.task_records:
+            _fail("[EXPECTED]", "task_id is empty, too long, or already used")
+        if not claim.strip() or len(claim) > 2048:
+            _fail("[EXPECTED]", "claim length")
+        if not criterion.strip() or len(criterion) > 2048:
+            _fail("[EXPECTED]", "criterion length")
+        requester = str(gl.message.sender_address)
+        if requester.lower() == str(agent).lower():
+            _fail("[EXPECTED]", "requester and agent must differ")
+        task = {"task_id": task_id, "requester": requester, "agent": str(agent),
+                "claim": claim, "criterion": criterion, "status": "OPEN", "proof_id": 0}
+        self.task_records[task_id] = json.dumps(task, sort_keys=True)
+        return task_id
+
+    @gl.public.write
     def submit_proof(
         self,
+        task_id: str,
         reference_id: str,
-        claim: str,
-        criterion: str,
         evidence_url: str,
         evidence_sha256: str,
     ) -> u256:
         if not reference_id.strip() or len(reference_id) > 128:
             _fail("[EXPECTED]", "reference_id length")
-        if not claim.strip() or len(claim) > 2048:
-            _fail("[EXPECTED]", "claim length")
-        if not criterion.strip() or len(criterion) > 2048:
-            _fail("[EXPECTED]", "criterion length")
+        if task_id not in self.task_records:
+            _fail("[EXPECTED]", "unknown task")
+        task = json.loads(self.task_records[task_id])
+        submitter = str(gl.message.sender_address)
+        if task["agent"].lower() != submitter.lower():
+            _fail("[EXPECTED]", "only assigned agent may submit")
+        if task["status"] != "OPEN":
+            _fail("[EXPECTED]", "task already submitted")
         if len(evidence_sha256) != 64:
             _fail("[EXPECTED]", "evidence_sha256 must be hex SHA-256")
         for char in evidence_sha256:
             if char not in "0123456789abcdefABCDEF":
                 _fail("[EXPECTED]", "evidence_sha256 must be hex")
         _validate_url(evidence_url)
-        submitter = str(gl.message.sender_address)
         reference_key = json.dumps([submitter, reference_id])
         if reference_key in self.reference_ids:
             _fail("[EXPECTED]", "reference already submitted")
@@ -91,15 +106,17 @@ class OrivexProofRegistry(gl.Contract):
         proof_id = self.next_proof_id
         self.next_proof_id += 1
         record = {
-            "schema_version": 2,
-            "domain": "orivex.evidence-proof.v2",
+            "schema_version": 3,
+            "domain": "orivex.evidence-proof.v3",
             "chain_id": int(gl.message.chain_id),
             "contract_address": str(gl.message.contract_address),
             "proof_id": proof_id,
             "submitter": submitter,
+            "requester": task["requester"],
+            "task_id": task_id,
             "reference_id": reference_id,
-            "claim": claim,
-            "criterion": criterion,
+            "claim": task["claim"],
+            "criterion": task["criterion"],
             "evidence_url": evidence_url,
             "evidence_sha256": evidence_sha256.lower(),
             "status": "PENDING",
@@ -107,6 +124,9 @@ class OrivexProofRegistry(gl.Contract):
         }
         self.proof_records[proof_id] = json.dumps(record, sort_keys=True)
         self.reference_ids[reference_key] = proof_id
+        task["status"] = "SUBMITTED"
+        task["proof_id"] = proof_id
+        self.task_records[task_id] = json.dumps(task, sort_keys=True)
         return proof_id
 
     @gl.public.write
@@ -173,6 +193,13 @@ class OrivexProofRegistry(gl.Contract):
         record["status"] = status
         record["proof_hash"] = proof_hash
         self.proof_records[proof_id] = json.dumps(record, sort_keys=True)
+        task = json.loads(self.task_records[record["task_id"]])
+        task["status"] = status
+        self.task_records[record["task_id"]] = json.dumps(task, sort_keys=True)
+        if status == "SUCCESS":
+            agent = record["submitter"]
+            self.credentials[json.dumps([agent, record["task_id"]])] = proof_id
+            self.verified_counts[agent] = (self.verified_counts[agent] if agent in self.verified_counts else 0) + 1
         return proof_hash
 
     @gl.public.view
@@ -189,3 +216,19 @@ class OrivexProofRegistry(gl.Contract):
     @gl.public.view
     def total_proofs(self) -> u256:
         return self.next_proof_id - 1
+
+    @gl.public.view
+    def get_task(self, task_id: str) -> str:
+        if task_id not in self.task_records:
+            _fail("[EXPECTED]", "unknown task")
+        return self.task_records[task_id]
+
+    @gl.public.view
+    def get_credential(self, agent: Address, task_id: str) -> u256:
+        key = json.dumps([str(agent), task_id])
+        return self.credentials[key] if key in self.credentials else 0
+
+    @gl.public.view
+    def get_verified_count(self, agent: Address) -> u256:
+        key = str(agent)
+        return self.verified_counts[key] if key in self.verified_counts else 0

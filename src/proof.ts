@@ -1,6 +1,7 @@
 export type Proof = {
   schema_version: number; domain: string; chain_id: number; contract_address: string;
   proof_id: number; submitter: string; reference_id: string; claim: string; criterion: string;
+  requester?: string; task_id?: string;
   evidence_url: string; evidence_sha256: string; status: string; proof_hash: string;
 };
 
@@ -12,7 +13,11 @@ export function canonicalProof(proof: Proof): string {
 }
 
 export function validateProof(proof: Proof, address: string, id: number): void {
-  if (proof.schema_version !== 2 || proof.domain !== 'orivex.evidence-proof.v2' || proof.chain_id !== 61997
+  const legacy = proof.schema_version === 2 && proof.domain === 'orivex.evidence-proof.v2';
+  const tasked = proof.schema_version === 3 && proof.domain === 'orivex.evidence-proof.v3'
+    && /^0x[0-9a-f]{40}$/i.test(proof.requester ?? '') && Boolean(proof.task_id?.trim())
+    && proof.requester?.toLowerCase() !== proof.submitter?.toLowerCase();
+  if ((!legacy && !tasked) || proof.chain_id !== 61997
       || proof.contract_address?.toLowerCase() !== address.toLowerCase() || proof.proof_id !== id
       || !Number.isSafeInteger(id) || id < 1
       || !/^0x[0-9a-f]{40}$/i.test(proof.submitter)

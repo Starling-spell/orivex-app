@@ -9,15 +9,24 @@ import manifest from '../deployments/genlayer-studio-next.json';
 import './genlayer.css';
 
 type Example = { id: string; name: string; capability: string; proofId: number; verifyTx: string;
-  proof?: Proof; checkedAt?: string; expected?: string; consensus?: { votes: Record<string, string> } };
+  proof?: Proof; checkedAt?: string; expected?: string; consensus?: { votes: Record<string, string> };
+  credentialProofId?: number; verifiedCount?: number };
+type Task = { task_id: string; requester: string; agent: string; claim: string; criterion: string;
+  status: string; proof_id: number };
+type VerifiedWork = { proofId: number; taskId: string; agent: string; requester: string };
 const client = createClient({ chain: studioDevnet });
 if (manifest.chainId !== 61997 || studioDevnet.id !== 61997) throw new Error('Lab deployment must use Studio Next (61997).');
 const explorer = 'https://explorer-studio-dev.genlayer.com';
 const address = manifest.address as `0x${string}`;
+const upgraded = (manifest.smoke.proof as Proof).schema_version === 3;
 const hash = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), byte => byte.toString(16).padStart(2, '0')).join('');
 
 function AgentLab() {
-  const [manual, setManual] = useState({ reference: '', claim: '', criterion: '', url: '', digest: '' });
+  const [taskDraft, setTaskDraft] = useState({ taskId: '', agent: '', claim: '', criterion: '' });
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [task, setTask] = useState<Task | null>(null);
+  const [verifiedWork, setVerifiedWork] = useState<VerifiedWork[]>([]);
+  const [manual, setManual] = useState({ taskId: '', reference: '', url: '', digest: '' });
   const [manualDigesting, setManualDigesting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [pendingSubmitTx, setPendingSubmitTx] = useState('');
@@ -48,6 +57,7 @@ function AgentLab() {
         if (await hash(canonicalProof(item.proof)) !== item.proof.proof_hash) throw new Error('Saved proof hash mismatch.');
       }
       const latest = await loadLatestOnchain(records.map((item: Example) => item.proofId));
+      if (upgraded) await loadVerifiedDirectory();
       setExamples(latest ? [smoke, ...records, latest] : [smoke, ...records]);
       setMessage(latest
         ? `${records.length} saved receipts loaded, plus live proof #${latest.proofId}. Select one, then recheck onchain.`
@@ -61,7 +71,11 @@ function AgentLab() {
     const live: Proof = JSON.parse(String(raw));
     validateProof(live, manifest.address, id);
     if (await hash(canonicalProof(live)) !== live.proof_hash) throw new Error('Onchain proof hash mismatch.');
-    return { id: `onchain-${id}`, name: live.reference_id, capability: 'Onchain proof', proofId: id, verifyTx: '', proof: live, checkedAt: new Date().toISOString() };
+    const credentialProofId = live.schema_version === 3 && live.task_id
+      ? Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName: 'get_credential', args: [live.submitter, live.task_id] })) : undefined;
+    const verifiedCount = live.schema_version === 3
+      ? Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName: 'get_verified_count', args: [live.submitter] })) : undefined;
+    return { id: `onchain-${id}`, name: live.reference_id, capability: 'Onchain proof', proofId: id, verifyTx: '', proof: live, checkedAt: new Date().toISOString(), credentialProofId, verifiedCount };
   }
   async function loadLatestOnchain(knownIds: number[]) {
     try {
@@ -95,13 +109,20 @@ function AgentLab() {
       let votes: Record<string, string> | undefined;
       if (entry.verifyTx) {
         const receipt = await client.getTransaction({ hash: entry.verifyTx as Hash });
-        validateReceipt(receipt, manifest.address, manifest.deployer);
+        validateReceipt(receipt, manifest.address, live.submitter);
         const call = (receipt.data as { calldata?: { readable?: string } })?.calldata?.readable;
         if (!call?.includes('"":"verify_proof"') || !call.includes(`"args":[${entry.proofId},]`)) throw new Error('Receipt refers to a different proof.');
-        if (live.submitter.toLowerCase() !== manifest.deployer.toLowerCase()) throw new Error('Proof submitter mismatch.');
         votes = receipt.consensus_data!.votes!;
       }
-      setExamples(items => items.map(item => item.id === entry.id ? { ...item, proof: live, checkedAt: new Date().toISOString(), consensus: votes ? { votes } : item.consensus } : item));
+      const credentialProofId = live.schema_version === 3 && live.task_id
+        ? Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+          address, functionName: 'get_credential', args: [live.submitter, live.task_id] })) : undefined;
+      const verifiedCount = live.schema_version === 3
+        ? Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+          address, functionName: 'get_verified_count', args: [live.submitter] })) : undefined;
+      if (live.schema_version === 3 && credentialProofId !== (live.status === 'SUCCESS' ? live.proof_id : 0))
+        throw new Error('Credential state does not match the finalized judgment.');
+      setExamples(items => items.map(item => item.id === entry.id ? { ...item, proof: live, checkedAt: new Date().toISOString(), credentialProofId, verifiedCount, consensus: votes ? { votes } : item.consensus } : item));
       setMessage(entry.verifyTx
         ? 'Live check passed: source, finalized consensus, submitter and proof commitment match. Evidence bytes can be rechecked with npm run genlayer:check.'
         : 'Live proof loaded from Studio Next. Submit/verify receipts are not attached to this lookup.');
@@ -109,6 +130,51 @@ function AgentLab() {
     finally { setChecking(false); }
   }
   const votes = Object.values(entry.consensus?.votes ?? {});
+  async function loadTask(taskId: string) {
+    if (!taskId.trim()) throw new Error('Enter a task ID.');
+    const raw = await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+      address, functionName: 'get_task', args: [taskId.trim()] });
+    const next = JSON.parse(String(raw)) as Task;
+    if (next.task_id !== taskId.trim() || !/^0x[0-9a-f]{40}$/i.test(next.requester)
+      || !/^0x[0-9a-f]{40}$/i.test(next.agent)) throw new Error('Invalid onchain task.');
+    setTask(next);
+    return next;
+  }
+  async function loadVerifiedDirectory() {
+    const total = Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+      address, functionName: 'total_proofs' }));
+    const approved: VerifiedWork[] = [];
+    for (let id = total; id > Math.max(0, total - 50); id--) {
+      try {
+        const item = await readOnchainProof(id);
+        const record = item.proof;
+        if (record?.schema_version === 3 && record.status === 'SUCCESS' && record.task_id && record.requester
+          && item.credentialProofId === id)
+          approved.push({ proofId: id, taskId: record.task_id, agent: record.submitter, requester: record.requester });
+      } catch { /* Pending or invalid proofs never enter the verified directory. */ }
+    }
+    setVerifiedWork(approved);
+  }
+  async function createTask() {
+    if (!taskDraft.taskId.trim() || !/^0x[0-9a-f]{40}$/i.test(taskDraft.agent)
+      || !taskDraft.claim.trim() || !taskDraft.criterion.trim()) { setError('Fill the task ID, agent address, claim, and criterion.'); return; }
+    setCreatingTask(true); setError('');
+    try {
+      const { account, client: writer } = await studioWalletWriter();
+      if (account.toLowerCase() === taskDraft.agent.toLowerCase()) throw new Error('Use a different wallet for the requester and agent.');
+      const tx = txHash(await writer.writeContract({ address, functionName: 'create_task',
+        args: [taskDraft.taskId.trim(), taskDraft.agent, taskDraft.claim.trim(), taskDraft.criterion.trim()],
+        value: 0n, leaderOnly: false, fees: await studioFees(writer) }));
+      const receipt = await client.waitForTransactionReceipt({ hash: tx, waitUntil: 'finalized', fullTransaction: true });
+      validateReceipt(receipt, address, account);
+      const next = await waitUntil('Task was not readable after finalization.', async () => {
+        try { return await loadTask(taskDraft.taskId); } catch { return undefined; }
+      }, 40, 3000);
+      setManual(value => ({ ...value, taskId: next.task_id }));
+      setMessage(`Task ${next.task_id} is fixed onchain. The assigned agent can now submit evidence.`);
+    } catch (cause) { setError(studioError(cause)); }
+    finally { setCreatingTask(false); }
+  }
   async function digestEvidence() {
     if (!manual.url) return;
     setManualDigesting(true); setError('');
@@ -116,16 +182,19 @@ function AgentLab() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not fetch evidence.'); }
     finally { setManualDigesting(false); }
   }
-  const manualReady = Object.values(manual).every(Boolean);
+  const manualReady = Object.values(manual).every(Boolean) && task?.task_id === manual.taskId && task.status === 'OPEN';
   async function verifyOnchain() {
     if (!manualReady) { setError('Fill every field and hash the evidence before verifying.'); return; }
     setVerifying(true); setError(''); setPendingSubmitTx(''); setPendingVerifyTx('');
     try {
       const { account, client: writer } = await studioWalletWriter();
+      const currentTask = await loadTask(manual.taskId);
+      if (currentTask.status !== 'OPEN' || currentTask.agent.toLowerCase() !== account.toLowerCase())
+        throw new Error('Connect the assigned agent wallet to an open task.');
       setMessage(`Approve the submit transaction in your wallet (${account.slice(0, 6)}…${account.slice(-4)})…`);
       const submitTx = txHash(await writer.writeContract({
         address, functionName: 'submit_proof', value: 0n, leaderOnly: false, fees: await studioFees(writer),
-        args: [manual.reference, manual.claim, manual.criterion, manual.url, manual.digest.toLowerCase()],
+        args: [manual.taskId, manual.reference, manual.url, manual.digest.toLowerCase()],
       }));
       setPendingSubmitTx(submitTx);
       localStorage.setItem(`orivex:61997:${address}:${account}:pending`, JSON.stringify({submitTx,reference:manual.reference}));
@@ -160,10 +229,17 @@ function AgentLab() {
       const item: Example = {
         id: `onchain-${id}`, name: live.reference_id, capability: 'Live verification', proofId: id,
         verifyTx, proof: live, checkedAt: new Date().toISOString(),
+        credentialProofId: Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+          address, functionName: 'get_credential', args: [account, manual.taskId] })),
+        verifiedCount: Number(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL,
+          address, functionName: 'get_verified_count', args: [account] })),
       };
       setExamples(items => [...items.filter(entry => entry.id !== item.id), item]);
       setSelected(item.id);
-      setMessage(`Validators judged this claim ${live.status}. The result is stored on Studio Next and shown below.`);
+      if (live.status === 'SUCCESS') await loadVerifiedDirectory();
+      setMessage(live.status === 'SUCCESS'
+        ? `Validators approved proof #${id}. A nontransferable task credential was issued to ${account}.`
+        : `Validators judged proof #${id} ${live.status}. No task credential was issued.`);
       document.getElementById('lab-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (cause) {
       setError(studioError(cause));
@@ -172,15 +248,18 @@ function AgentLab() {
   }
   return <div className="agent-lab">
     <div className="lab-heading"><div><p>GenLayer Studio Next · Chain 61997</p><h2>Inspect an agent’s claim.</h2></div><a href="/docs/guide.html">User guide ↗</a></div>
-    <p>Executable research and review agents submit claims against pinned public evidence. An intelligent contract records the validator-agreed judgment.</p>
+    <p>A requester fixes the claim and criterion before an agent submits pinned evidence. Validator consensus issues a task credential only for a successful proof.</p>
     <div className="lab-actions"><button className="btn btn-primary" disabled={loading || checking} onClick={loadExamples}>{loading ? 'Loading receipts…' : 'Load agent examples'}</button><a className="btn btn-ghost" href="https://studio-next.genlayer.com" target="_blank" rel="noreferrer">Open GenLayer Studio ↗</a></div>
-    <section className="manual-proof card"><h3>Verify an agent manually</h3><p>Enter an externally acquired claim and immutable evidence. This page submits the proof to Studio Next, waits for validator consensus, and shows SUCCESS, FAILED, or INCONCLUSIVE here.</p><div className="manual-grid"><label>Reference ID<input value={manual.reference} onChange={event => setManual({ ...manual, reference: event.target.value })} placeholder="agent-run-001" /></label><label>Claim<input value={manual.claim} onChange={event => setManual({ ...manual, claim: event.target.value })} placeholder="Agent completed the audit" /></label><label>Criterion<textarea value={manual.criterion} onChange={event => setManual({ ...manual, criterion: event.target.value })} placeholder="Evidence must show the completed audit and its result" /></label><label>Evidence URL<input value={manual.url} onChange={event => setManual({ ...manual, url: event.target.value })} placeholder="https://raw.githubusercontent.com/..." /></label><label>Evidence SHA-256<input value={manual.digest} onChange={event => setManual({ ...manual, digest: event.target.value })} placeholder="64 hex characters" /></label></div><div className="lab-actions"><button className="btn btn-ghost" disabled={!manual.url || manualDigesting || verifying} onClick={digestEvidence}>{manualDigesting ? 'Fetching evidence…' : 'Fetch and hash evidence'}</button><button className="btn btn-primary" disabled={!manualReady || verifying} onClick={verifyOnchain}>{verifying ? 'Verifying…' : 'Verify'}</button></div>
-      <p className="lab-message">Hash the evidence, then click Verify. Approve the wallet transactions. The validator judgment appears in this page after consensus.</p>
+    <section className="manual-proof card">{upgraded ? <><h3>1 · Request work</h3><p>Connect the requester wallet. This wallet fixes the task before the assigned agent can provide evidence.</p><div className="manual-grid"><label>Task ID<input value={taskDraft.taskId} onChange={event => setTaskDraft({ ...taskDraft, taskId: event.target.value })} placeholder="audit-2026-001" /></label><label>Assigned agent wallet<input value={taskDraft.agent} onChange={event => setTaskDraft({ ...taskDraft, agent: event.target.value })} placeholder="0x…" /></label><label>Claim<input value={taskDraft.claim} onChange={event => setTaskDraft({ ...taskDraft, claim: event.target.value })} placeholder="Agent completed the audit" /></label><label>Acceptance criterion<textarea value={taskDraft.criterion} onChange={event => setTaskDraft({ ...taskDraft, criterion: event.target.value })} placeholder="Pinned report must show scope, findings, and completed review" /></label></div><div className="lab-actions"><button className="btn btn-primary" disabled={creatingTask || verifying} onClick={createTask}>{creatingTask ? 'Creating task…' : 'Create onchain task'}</button></div>
+      <h3>2 · Prove the work</h3><p>Connect the assigned agent wallet. The claim and criterion below come from the requester’s onchain task and cannot be edited here.</p><div className="manual-grid"><label>Task ID<input value={manual.taskId} onChange={event => { setManual({ ...manual, taskId: event.target.value }); setTask(null); }} placeholder="audit-2026-001" /></label><label>Reference ID<input value={manual.reference} onChange={event => setManual({ ...manual, reference: event.target.value })} placeholder="agent-run-001" /></label><label>Evidence URL<input value={manual.url} onChange={event => setManual({ ...manual, url: event.target.value })} placeholder="https://raw.githubusercontent.com/..." /></label><label>Evidence SHA-256<input value={manual.digest} onChange={event => setManual({ ...manual, digest: event.target.value })} placeholder="64 hex characters" /></label></div><div className="lab-actions"><button className="btn btn-ghost" disabled={!manual.taskId || verifying} onClick={() => { void loadTask(manual.taskId).catch(cause => setError(studioError(cause))); }}>Load fixed task</button><button className="btn btn-ghost" disabled={!manual.url || manualDigesting || verifying} onClick={digestEvidence}>{manualDigesting ? 'Fetching evidence…' : 'Fetch and hash evidence'}</button><button className="btn btn-primary" disabled={!manualReady || verifying} onClick={verifyOnchain}>{verifying ? 'Verifying…' : 'Submit and verify'}</button></div>
+      {task && <div className="lab-message"><strong>{task.status} · {task.task_id}</strong><p>Requester: <code>{task.requester}</code></p><p>Assigned agent: <code>{task.agent}</code></p><p>Claim: {task.claim}</p><p>Criterion: {task.criterion}</p></div>}
+      <p className="lab-message">A successful verdict issues a nontransferable credential for this task and increments the agent’s verified work count. Separate wallets alone do not prove independent real-world identities.</p></> : <><h3>Legacy deployment</h3><p>This deployment used submitter-defined criteria. New task creation and credential issuance require the v3 contract deployment. Existing receipts remain inspectable below.</p></>}
       {(verifying || pendingSubmitTx || pendingVerifyTx) && <p className="lab-message" role="status">{message}</p>}
       {pendingSubmitTx && <p className="tx-link">Pending submit transaction: <a href={`${explorer}/tx/${pendingSubmitTx}`} target="_blank" rel="noreferrer">{pendingSubmitTx}</a></p>}
       {pendingVerifyTx && <p className="tx-link">Pending verify transaction: <a href={`${explorer}/tx/${pendingVerifyTx}`} target="_blank" rel="noreferrer">{pendingVerifyTx}</a></p>}
       {error && <p className="lab-error" role="alert">{error}</p>}
       <div className="lab-actions lookup-row"><label>Onchain proof ID<input value={lookupId} onChange={event => setLookupId(event.target.value)} placeholder="7" inputMode="numeric" /></label><button className="btn btn-primary" disabled={lookingUp || checking || verifying || !lookupId.trim()} onClick={lookupProof}>{lookingUp ? 'Looking up…' : 'Look up proof'}</button></div></section>
+    {upgraded && <section className="manual-proof card"><h3>Verified work directory</h3><p>Only agents with a SUCCESS proof and a matching onchain task credential appear here. Showing the latest 50 proofs.</p>{verifiedWork.length ? <ul>{verifiedWork.map(item => <li key={item.proofId}><button className="btn btn-ghost" onClick={() => { setLookupId(String(item.proofId)); void readOnchainProof(item.proofId).then(found => { setExamples(items => [...items.filter(existing => existing.id !== found.id), found]); setSelected(found.id); }).catch(cause => setError(studioError(cause))); }}>Proof #{item.proofId} · {item.taskId}</button> Agent <code>{item.agent}</code></li>)}</ul> : <p>No eligible agents in the latest 50 proofs.</p>}</section>}
     <div className="lab-layout"><div className="lab-list" aria-label="Agent examples">{examples.map(item => <button key={item.id} aria-pressed={entry.id === item.id} disabled={checking} onClick={() => { setSelected(item.id); setError(''); setMessage('Saved receipt. Recheck to read Studio Next now.'); }}><strong>{item.name}</strong><span>{item.capability}</span><small>{item.proof?.status ?? 'PENDING'} · #{item.proofId}</small></button>)}</div>
       <article className="lab-proof" id="lab-result"><div className="lab-proof-title"><h3>{entry.name}</h3><span className={`proof-status status-${proof?.status.toLowerCase()}`}>{proof?.status ?? 'PENDING'}</span></div>
         {proof ? <><h4>Claim</h4><p>{proof.claim}</p><h4>Evaluation criterion</h4><p>{proof.criterion}</p><dl>
@@ -191,6 +270,7 @@ function AgentLab() {
           {entry.verifyTx && !entry.id.startsWith('onchain-') ? <><dt>Receipt export</dt><dd><a href={`/receipts/${entry.verifyTx}.json`} target="_blank" rel="noreferrer">Open full consensus receipt JSON ↗</a></dd></> : null}
           <dt>Contract</dt><dd><a href={`${explorer}/address/${manifest.address}`} target="_blank" rel="noreferrer">{manifest.address}</a></dd>
           <dt>Submitter</dt><dd><a href={`${explorer}/address/${proof.submitter}`} target="_blank" rel="noreferrer">{proof.submitter}</a></dd>
+          {proof.requester && <><dt>Requester</dt><dd><a href={`${explorer}/address/${proof.requester}`} target="_blank" rel="noreferrer">{proof.requester}</a></dd><dt>Task</dt><dd>{proof.task_id}</dd><dt>Credential</dt><dd>{entry.credentialProofId === undefined ? 'Recheck onchain' : entry.credentialProofId === entry.proofId ? `Issued · proof #${entry.proofId}` : 'Not issued'}</dd><dt>Verified work count</dt><dd>{entry.verifiedCount ?? 'Recheck onchain'}</dd></>}
           <dt>Consensus</dt><dd>{votes.length ? `${votes.filter(v => v === 'agree').length} agree / ${votes.length} assigned; ${votes.filter(v => v === 'idle').length} idle` : 'See transaction receipt'}</dd>
           <dt>Last checked</dt><dd>{entry.checkedAt ? new Date(entry.checkedAt).toLocaleString() : 'Not checked in this session'}</dd>
         </dl></> : <p>This example has not finalized.</p>}

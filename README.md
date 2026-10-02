@@ -52,11 +52,11 @@ The first command estimates gas without sending. The broadcast command prompts t
 
 ## GenLayer Studio Next proofs
 
-The Agent Lab now reads and writes on **chain 61997**, using the canonical studio-dev RPC and preview SDK. Contract: [0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8](https://explorer-studio-dev.genlayer.com/address/0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8). A real document claim completed submission and decentralized judgment with **SUCCESS**; all three transactions finalized successfully.
+The Agent Lab reads and writes on **chain 61997**, using the canonical studio-dev RPC and preview SDK. Contract: [0xE3B42ae4623D6f746a43487184C92834a3Ae85DC](https://explorer-studio-dev.genlayer.com/address/0xE3B42ae4623D6f746a43487184C92834a3Ae85DC). A requester wallet fixed the task's claim and criterion before a different agent wallet submitted pinned evidence. GenLayer validators returned **SUCCESS**, issued task credential #1 and incremented the agent's verified work count. The app's verified work directory reads that credential.
 
 See [the current runbook and proof](docs/STUDIO-NEXT.md), [deployment manifest](deployments/genlayer-studio-next.json), and [live Lab](https://orivexapp.vercel.app/#deploy).
 
-The old StudioNet 61999 manifests and examples are historical only; they are not loaded by the current Lab. The protocol-fee estimate is included in every Studio Next write. Claims bind evidence bytes, criterion, signer, chain and contract; they do not establish agent identity or settle Base certificates.
+The old StudioNet 61999 manifests and examples are historical only; they are not loaded by the current Lab. The protocol-fee estimate is included in every Studio Next write. Separate wallets do not establish independent real-world identities. GenLayer task credentials do not settle Base certificates or payments.
 
 ## Build and checks
 

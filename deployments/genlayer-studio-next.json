@@ -4,41 +4,44 @@
   "rpc": "https://studio-dev.genlayer.com/api",
   "explorer": "https://explorer-studio-dev.genlayer.com",
   "contract": "OrivexProofRegistry",
-  "address": "0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8",
-  "deployer": "0x7a413BB4AB62E31d62d4cD9efC8C8a8Dae37FB42",
-  "deploymentTx": "0xbf4d8d97cd171a85129d87e5b5c1234196c3d1942f51970fcfaaaeb2bb0dc46f",
+  "address": "0xE3B42ae4623D6f746a43487184C92834a3Ae85DC",
+  "deployer": "0x8B9bb0Bd9FB3Ba549036BdE0fB1971a5BD9C4F41",
+  "deploymentTx": "0xad081d6a5e41cf4d8c8b87cf9d0b7758603be729b40d4f52611f6049d2dd4659",
   "status": "FINALIZED",
   "execution": "FINISHED_WITH_RETURN",
-  "sourceSha256": "eaa9ed93c9594f7f1bf5f3a6d61ff3da86df6c6eec09a4ac870dd30f496b9204",
+  "sourceSha256": "d99bc670fae02218aac52777aa98a3dfc9bf64eb489ff09126023756e90ff6d3",
   "sourceMatchesCurrent": true,
   "usableForProofs": true,
-  "checkedAt": "2026-09-20T09:21:53.781Z",
+  "checkedAt": "2026-10-02T18:49:52.122Z",
   "smoke": {
     "status": "SUCCESS",
-    "submitTx": "0xe904d9b2d2138353dcb15c7bf57ac0bbc5e0debed357093212ec35ebd8a52c36",
-    "verifyTx": "0x2631ec863c43729761bdb5b4129a5a2d17d4b6ceab2ef20e8d1c637acb4aa768",
+    "createTaskTx": "0xdc5a4e3f497486add5b011d862b5d0e82c4d088972e88561813ba3facf888d1e",
+    "submitTx": "0xbe64b2502da2f39c86d9b2ac4b76fd4faba8003240871e15768566f2ca6aa18a",
+    "verifyTx": "0x341821f213ae8321a5cb374dea5188d2a08f08caa8460fa90b93bb284e17369d",
     "proof": {
       "chain_id": 61997,
       "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
-      "contract_address": "0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8",
+      "contract_address": "0xE3B42ae4623D6f746a43487184C92834a3Ae85DC",
       "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
-      "domain": "orivex.evidence-proof.v2",
+      "domain": "orivex.evidence-proof.v3",
       "evidence_sha256": "13cd784a6c31361f0e0c6aa3b410a1cb9a079868b7314c13e3eb8a75351746b9",
       "evidence_url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/c64a1edb67b6e3f4a15cca8909c9482ad33a02b0/LICENSE",
-      "proof_hash": "d3412b24063464910bcd04535e32788f1fd92de5555e553f6352bf720cd91e67",
+      "proof_hash": "77e69a07c95e6c9d5e3f31354174158eff6c2453e2a477437906e3f977bd012b",
       "proof_id": 1,
-      "reference_id": "orivex:studio-next:license-review:v1",
-      "schema_version": 2,
+      "reference_id": "orivex:studio-next:license-review:v3",
+      "requester": "0x17c3C5cBfcFB945Eebbc2E79e363e5b1Fe6B02Bd",
+      "schema_version": 3,
       "status": "SUCCESS",
-      "submitter": "0x7a413BB4AB62E31d62d4cD9efC8C8a8Dae37FB42"
+      "submitter": "0x8B9bb0Bd9FB3Ba549036BdE0fB1971a5BD9C4F41",
+      "task_id": "orivex:studio-next:license-review:v3"
     },
     "consensus": {
       "votes": {
-        "0x05d8aFc66B515038712537f99cAAEA73d16f0007": "idle",
-        "0x1dA3a7de8EA65A318bf88Eb63d3dC55295Dd257E": "agree",
+        "0x5A4230B920b18c4AFD3A28F99Eae669B7F2cdC1e": "agree",
         "0x5cDf4BdDeEDa0e32ED596b94f69AcC0FbB57f264": "agree",
-        "0x6760cDeC573cf38568C59872ee48B6fED41F8A4c": "idle",
-        "0xcbC79F96B7A275b23EE64d80a98325107F6E1b77": "agree"
+        "0xA793D9dc0ED9edC1f9F732bB68b5D3AFA934F52D": "idle",
+        "0xEEcEC5D1E07Ee40f5cb85aF922178Dc01278013C": "idle",
+        "0xf13c3DfE38C8E206C33F750C24a1b043b63Cb810": "agree"
       }
     }
   }

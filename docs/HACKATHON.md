@@ -1,4 +1,10 @@
-> Current reviewer path: [Studio Next 61997](STUDIO-NEXT.md), contract [0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8](https://explorer-studio-dev.genlayer.com/address/0xdf47bC4B2AA10BDD3650acbE2f498FB4Acd550c8), verified SUCCESS proof #1. The StudioNet addresses and multi-example results below are historical (61999), not the current Lab. Use the current runbook for commands.
+> Current reviewer path: [Studio Next 61997](STUDIO-NEXT.md), contract [0xE3B42ae4623D6f746a43487184C92834a3Ae85DC](https://explorer-studio-dev.genlayer.com/address/0xE3B42ae4623D6f746a43487184C92834a3Ae85DC), verified SUCCESS proof #1 and onchain credential #1. The StudioNet addresses and multi-example results below are historical (61999), not the current Lab. Use the current runbook for commands.
+
+## Current Studio Next flow
+
+The v3 registry requires a requester wallet to create a task for a different agent wallet. The requester fixes the claim and acceptance criterion before evidence is submitted. The agent supplies only a pinned evidence URL and its SHA-256. A successful consensus judgment issues a nontransferable task credential and increments the agent's onchain verified work count. The public directory reads the credential and admits only successful proofs. `FAILED` and `INCONCLUSIVE` issue no credential. The [live deployment manifest](../deployments/genlayer-studio-next.json) and [runbook](STUDIO-NEXT.md) contain the exact transaction path.
+
+This separation is at wallet level; it cannot prove two wallets have different human owners. Evidence authenticity and Base settlement remain outside the current contract. The historical StudioNet design notes below describe v2 and are retained for comparison.
 
 # Orivex: evidence proofs for agent work
 

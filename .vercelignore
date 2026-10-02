@@ -1,11 +1,12 @@
 .git/
 .pytest_cache/
+.venv-genlayer/
+.npm-cache/
 .gltest_cache/
 .genlayer-local/
-.venv-genlayer/
+artifacts/
 node_modules/
 dist/
-artifacts/
 cache/
 out/
 broadcast/
