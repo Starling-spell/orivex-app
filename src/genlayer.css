@@ -29,5 +29,12 @@
 .agent-lab summary { cursor: pointer; padding: 12px 0; min-height: 44px; }
 .agent-lab pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.8 var(--mono); }
 .agent-lab button, .lab-heading > a { min-height: 44px; }
+.lab-templates { margin: 28px 0; padding: 24px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.lab-templates h3 { margin: 0 0 8px; font-size: 22px; }
+.lab-templates ol { padding-left: 22px; color: var(--muted); }
+.lab-templates li { margin: 8px 0; }
+.template-controls { align-items: end; }
+.template-controls label { display: grid; gap: 6px; font-size: 13px; flex: 1 1 280px; }
+.template-controls select { width: 100%; min-height: 44px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px; font: inherit; }
 @media (max-width: 760px) { .lab-layout { grid-template-columns: 1fr; gap: 24px; } .lab-heading, .lab-proof-title { align-items: flex-start; flex-direction: column; gap: 8px; } }
 .manual-proof{margin:24px 0;padding:24px}.manual-proof h3{margin:0 0 8px}.manual-proof p{color:var(--muted,#9aa4bc)}.manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.manual-grid label{display:grid;gap:6px;color:var(--muted,#9aa4bc);font-size:.8rem}.manual-grid input,.manual-grid textarea{width:100%;box-sizing:border-box;background:#0d1322;border:1px solid #2a3855;color:#fff;border-radius:8px;padding:10px;font:inherit}.manual-grid textarea{min-height:74px;resize:vertical}.manual-proof pre{white-space:pre-wrap;overflow:auto}.cli-payload{margin-top:20px;padding:16px;border:1px solid var(--line,#2a3855);border-radius:8px;background:#0d1322}.cli-payload h4{margin:0 0 10px;font-size:14px}.lab-footnote{margin-top:28px;color:var(--muted);font-size:13px;max-width:80ch}.tx-link{margin:8px 0 0;padding:10px 12px;border:1px solid #2a3855;border-radius:8px;background:#0d1322;font:12px/1.6 var(--mono);overflow-wrap:anywhere}.tx-link a{color:#9abaff}.lookup-row{align-items:end}.lookup-row label{display:grid;gap:6px;color:var(--muted,#9aa4bc);font-size:.8rem}.lookup-row input{background:#0d1322;border:1px solid #2a3855;color:#fff;border-radius:8px;padding:10px;font:inherit;min-width:8rem}@media(max-width:700px){.manual-grid{grid-template-columns:1fr}}

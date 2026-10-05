@@ -20,8 +20,17 @@ const explorer = 'https://explorer-studio-dev.genlayer.com';
 const address = manifest.address as `0x${string}`;
 const upgraded = (manifest.smoke.proof as Proof).schema_version === 3;
 const hash = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), byte => byte.toString(16).padStart(2, '0')).join('');
+const proofTemplates = [
+  { id: 'license-review', name: 'License review: supported claim', expected: 'SUCCESS',
+    claim: manifest.smoke.proof.claim, criterion: manifest.smoke.proof.criterion },
+  { id: 'license-restriction', name: 'License review: contradicted claim', expected: 'FAILED',
+    claim: 'The license forbids redistribution of the software.',
+    criterion: 'SUCCESS only if the license explicitly forbids redistribution. FAILED if it explicitly grants permission to distribute the software.' },
+];
 
 function AgentLab() {
+  const [templateId, setTemplateId] = useState(proofTemplates[0].id);
+  const [templateNotice, setTemplateNotice] = useState('');
   const [taskDraft, setTaskDraft] = useState({ taskId: '', agent: '', claim: '', criterion: '' });
   const [creatingTask, setCreatingTask] = useState(false);
   const [task, setTask] = useState<Task | null>(null);
@@ -43,6 +52,16 @@ function AgentLab() {
   const [error, setError] = useState('');
   const entry = examples.find(example => example.id === selected) ?? examples[0];
   const proof = entry.proof;
+  const template = proofTemplates.find(item => item.id === templateId)!;
+  function applyTemplate() {
+    if (creatingTask || verifying || manualDigesting) return;
+    const taskId = `orivex:example:${template.id}:${crypto.randomUUID()}`;
+    setTaskDraft(value => ({ taskId, agent: value.agent, claim: template.claim, criterion: template.criterion }));
+    setManual({ taskId, reference: `${taskId}:proof`, url: manifest.smoke.proof.evidence_url,
+      digest: manifest.smoke.proof.evidence_sha256 });
+    setTask(null); setError('');
+    setTemplateNotice(`${template.name} loaded. Enter the assigned agent wallet below, then create the task with a different requester wallet.`);
+  }
   useEffect(() => { void loadExamples(); }, []);
   async function loadExamples() {
     setLoading(true); setError('');
@@ -250,6 +269,27 @@ function AgentLab() {
     <div className="lab-heading"><div><p>GenLayer Studio Next · Chain 61997</p><h2>Inspect an agent’s claim.</h2></div><a href="/docs/guide.html">User guide ↗</a></div>
     <p>A requester fixes the claim and criterion before an agent submits pinned evidence. Validator consensus issues a task credential only for a successful proof.</p>
     <div className="lab-actions"><button className="btn btn-primary" disabled={loading || checking} onClick={loadExamples}>{loading ? 'Loading receipts…' : 'Load agent examples'}</button><a className="btn btn-ghost" href="https://studio-next.genlayer.com" target="_blank" rel="noreferrer">Open GenLayer Studio ↗</a></div>
+    {upgraded && <section className="lab-templates" aria-labelledby="template-heading">
+      <h3 id="template-heading">Try an example template</h3>
+      <p>Fill both steps with a pinned document, its SHA-256, and a fresh task ID. Review the fields before sending a transaction.</p>
+      <div className="lab-actions template-controls">
+        <label>Example template<select value={templateId} disabled={creatingTask || verifying || manualDigesting}
+          onChange={event => setTemplateId(event.target.value)}>
+          {proofTemplates.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select></label>
+        <button className="btn btn-primary" disabled={creatingTask || verifying || manualDigesting} onClick={applyTemplate}>Use template</button>
+        <button className="btn btn-ghost" disabled={checking || verifying} onClick={() => {
+          setSelected('smoke'); setError('');
+          document.getElementById('lab-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}>View completed example</button>
+      </div>
+      <p>Expected verdict: <strong>{template.expected}</strong> if the pinned evidence is available. Validators determine the actual result. Only SUCCESS issues a task credential.</p>
+      <ol><li>Enter the agent wallet address. Connect a different requester wallet and create the onchain task.</li>
+        <li>Switch to the assigned agent wallet. Fetch and hash the evidence to check the prefilled digest.</li>
+        <li>Submit and verify, then inspect the finalized verdict and credential.</li></ol>
+      <p><a href={manifest.smoke.proof.evidence_url} target="_blank" rel="noreferrer">Read the pinned example evidence ↗</a>. Viewing the completed example requires no wallet.</p>
+      {templateNotice && <p className="lab-message" role="status">{templateNotice}</p>}
+    </section>}
     <section className="manual-proof card">{upgraded ? <><h3>1 · Request work</h3><p>Connect the requester wallet. This wallet fixes the task before the assigned agent can provide evidence.</p><div className="manual-grid"><label>Task ID<input value={taskDraft.taskId} onChange={event => setTaskDraft({ ...taskDraft, taskId: event.target.value })} placeholder="audit-2026-001" /></label><label>Assigned agent wallet<input value={taskDraft.agent} onChange={event => setTaskDraft({ ...taskDraft, agent: event.target.value })} placeholder="0x…" /></label><label>Claim<input value={taskDraft.claim} onChange={event => setTaskDraft({ ...taskDraft, claim: event.target.value })} placeholder="Agent completed the audit" /></label><label>Acceptance criterion<textarea value={taskDraft.criterion} onChange={event => setTaskDraft({ ...taskDraft, criterion: event.target.value })} placeholder="Pinned report must show scope, findings, and completed review" /></label></div><div className="lab-actions"><button className="btn btn-primary" disabled={creatingTask || verifying} onClick={createTask}>{creatingTask ? 'Creating task…' : 'Create onchain task'}</button></div>
       <h3>2 · Prove the work</h3><p>Connect the assigned agent wallet. The claim and criterion below come from the requester’s onchain task and cannot be edited here.</p><div className="manual-grid"><label>Task ID<input value={manual.taskId} onChange={event => { setManual({ ...manual, taskId: event.target.value }); setTask(null); }} placeholder="audit-2026-001" /></label><label>Reference ID<input value={manual.reference} onChange={event => setManual({ ...manual, reference: event.target.value })} placeholder="agent-run-001" /></label><label>Evidence URL<input value={manual.url} onChange={event => setManual({ ...manual, url: event.target.value })} placeholder="https://raw.githubusercontent.com/..." /></label><label>Evidence SHA-256<input value={manual.digest} onChange={event => setManual({ ...manual, digest: event.target.value })} placeholder="64 hex characters" /></label></div><div className="lab-actions"><button className="btn btn-ghost" disabled={!manual.taskId || verifying} onClick={() => { void loadTask(manual.taskId).catch(cause => setError(studioError(cause))); }}>Load fixed task</button><button className="btn btn-ghost" disabled={!manual.url || manualDigesting || verifying} onClick={digestEvidence}>{manualDigesting ? 'Fetching evidence…' : 'Fetch and hash evidence'}</button><button className="btn btn-primary" disabled={!manualReady || verifying} onClick={verifyOnchain}>{verifying ? 'Verifying…' : 'Submit and verify'}</button></div>
       {task && <div className="lab-message"><strong>{task.status} · {task.task_id}</strong><p>Requester: <code>{task.requester}</code></p><p>Assigned agent: <code>{task.agent}</code></p><p>Claim: {task.claim}</p><p>Criterion: {task.criterion}</p></div>}
