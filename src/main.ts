@@ -10,7 +10,7 @@ function fallback(id: string, marker: string, html: string) {
 const walletTimer = fallback(
   'wallet-slot',
   'Loading wallet',
-  '<button class="wallet-btn" onclick="alert(\'Privy wallet module did not load. Check VITE_PRIVY_APP_ID and reload.\')">Connect wallet</button>',
+  '<button class="wallet-btn" onclick="window.location.reload()">Retry wallet connection</button>',
 );
 const labTimer = fallback(
   'genlayer-slot',
@@ -25,5 +25,5 @@ void import('./genlayer').then(() => window.clearTimeout(labTimer)).catch(() => 
 });
 void import('./wallet').then(module => module.mountWallet()).then(() => window.clearTimeout(walletTimer)).catch(() => {
   const slot = document.getElementById('wallet-slot');
-  if (slot) slot.textContent = 'Wallet unavailable — check VITE_PRIVY_APP_ID.';
+  if (slot) slot.innerHTML = '<button class="wallet-btn" onclick="window.location.reload()">Retry wallet connection</button>';
 });
