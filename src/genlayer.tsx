@@ -180,7 +180,7 @@ export function AgentLab() {
     setCreatingTask(true); setError('');
     try {
       const { account, client: writer } = await studioWalletWriter();
-      if (account.toLowerCase() === taskDraft.agent.toLowerCase()) throw new Error('Use a different wallet for the requester and agent.');
+      if (account.toLowerCase() === taskDraft.agent.toLowerCase()) throw new Error('Use a different wallet for the requester and agent. Open your wallet menu, click Connect another wallet, and select that wallet as the requester. After creating the task, select the assigned agent wallet to submit evidence.');
       const tx = txHash(await writer.writeContract({ address, functionName: 'create_task',
         args: [taskDraft.taskId.trim(), taskDraft.agent, taskDraft.claim.trim(), taskDraft.criterion.trim()],
         value: 0n, leaderOnly: false, fees: await studioFees(writer) }));
@@ -300,7 +300,7 @@ export function AgentLab() {
         }}>View completed example</button>
       </div>
       <p>Expected verdict: <strong>{template.expected}</strong> if the pinned evidence is available. Validators determine the actual result. Only SUCCESS issues a task credential.</p>
-      <ol><li>Enter the agent wallet address. Connect a different requester wallet and create the onchain task.</li>
+      <ol><li>Enter the agent wallet address. In the header wallet menu, use Connect another wallet and select a different requester wallet to create the onchain task.</li>
         <li>Switch to the assigned agent wallet. Fetch and hash the evidence to check the prefilled digest.</li>
         <li>Submit and verify, then inspect the finalized verdict and credential.</li></ol>
       <p><a href={manifest.smoke.proof.evidence_url} target="_blank" rel="noreferrer">Read the pinned example evidence ↗</a>. Viewing the completed example requires no wallet.</p>

@@ -75,3 +75,14 @@ it('removes signing access after logout', async () => {
   await expect(window.__orivexGetWallet!()).rejects.toThrow('Connect a wallet first');
   expect(provider.request).not.toHaveBeenCalled();
 });
+
+it('opens a second wallet connection and labels the active Studio network correctly', () => {
+  sdk.auth.authenticated = true; sdk.walletState.ready = true;
+  sdk.walletState.wallets = [{ address:'0x1111111111111111111111111111111111111111', chainId:'eip155:61997', walletClientType:'metamask' }];
+  render(<WalletApp />);
+  expect(screen.getByText('GenLayer Studio Next')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name:'0x1111…1111' }));
+  expect(screen.getByRole('link', { name:'View on explorer ↗' }).getAttribute('href')).toContain('explorer-studio-dev.genlayer.com');
+  fireEvent.click(screen.getByRole('button', { name:'Connect another wallet' }));
+  expect(sdk.auth.connectWallet).toHaveBeenCalledOnce();
+});

@@ -97,7 +97,9 @@ export function WalletApp() {
   const [estimating, setEstimating] = useState(false);
   const [testnetConsent, setTestnetConsent] = useState(false);
   const [initializationSlow, setInitializationSlow] = useState(false);
-  const wrongChain = !!wallet && Number(wallet.chainId.split(':').at(-1)) !== chain.id;
+  const walletChainId = wallet ? Number(wallet.chainId.split(':').at(-1)) : chain.id;
+  const walletExplorer = walletChainId === 61997 ? 'https://explorer-studio-dev.genlayer.com' : explorer;
+  const wrongChain = !!wallet && walletChainId !== chain.id;
   const available = ready && (!authenticated || walletsReady);
   useEffect(() => {
     if (available) { setInitializationSlow(false); return; }
@@ -231,7 +233,7 @@ export function WalletApp() {
   }
 
   const header = <div className="wallet-area">
-    <span className="network-label">Base Sepolia</span>
+    <span className="network-label">{walletChainId === 61997 ? 'GenLayer Studio Next' : walletChainId === chain.id ? 'Base Sepolia' : `Chain ${walletChainId}`}</span>
     <button className="wallet-btn" disabled={(!available && !initializationSlow) || busy} onClick={() => !available ? window.location.reload() : account ? setMenu(!menu) : connect()}>
       {account ? short(account) : available ? 'Connect wallet' : initializationSlow ? 'Retry connection' : 'Loading wallet…'}
     </button>
@@ -240,7 +242,8 @@ export function WalletApp() {
       <select aria-label="Active wallet" value={wallet.address} disabled={busy} onChange={event => setSelected(event.target.value)}>
         {wallets.map(item => <option key={item.address} value={item.address}>{short(item.address)} ({item.walletClientType})</option>)}
       </select>
-      <a href={`${explorer}/address/${account}`} target="_blank" rel="noreferrer">View on explorer ↗</a>
+      <button disabled={busy} onClick={() => { setMenu(false); connectWallet(); }}>Connect another wallet</button>
+      <a href={`${walletExplorer}/address/${account}`} target="_blank" rel="noreferrer">View on explorer ↗</a>
       <button onClick={() => navigator.clipboard.writeText(account).catch(() => setError('Clipboard unavailable. Copy the address from the explorer.'))}>Copy address</button>
       <button disabled={busy} onClick={() => { setMenu(false); logout().catch(cause => setError(walletError(cause))); }}>Disconnect</button>
     </div>}
