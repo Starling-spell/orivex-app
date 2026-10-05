@@ -141,6 +141,17 @@ it('continues when browser storage is unavailable', async () => {
   } finally { storage.mockRestore(); }
 });
 
+it('allows consensus finalization beyond the SDK default thirty-second wait', async () => {
+  rpc.waitForTransactionReceipt.mockImplementation(async options => {
+    const deadline = (options.retries ?? 10) * (options.interval ?? 3000);
+    if (deadline < 60000) throw new Error('Timed out waiting for transaction finalization');
+    return receipt();
+  });
+  await prepareTask();
+  fireEvent.click(screen.getByRole('button', { name:'Submit and verify' }));
+  await waitFor(() => expect(document.querySelector('#lab-result')?.textContent).toContain('Issued · proof #2'));
+});
+
 it('blocks self-assignment before creating a task', async () => {
   render(<AgentLab />); fireEvent.click(screen.getByRole('button', { name: 'Use template' }));
   fireEvent.change(screen.getByLabelText('Assigned agent wallet'), { target: { value: requester } });

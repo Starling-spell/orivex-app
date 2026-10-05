@@ -184,7 +184,7 @@ export function AgentLab() {
       const tx = txHash(await writer.writeContract({ address, functionName: 'create_task',
         args: [taskDraft.taskId.trim(), taskDraft.agent, taskDraft.claim.trim(), taskDraft.criterion.trim()],
         value: 0n, leaderOnly: false, fees: await studioFees(writer) }));
-      const receipt = await client.waitForTransactionReceipt({ hash: tx, waitUntil: 'finalized', fullTransaction: true });
+      const receipt = await client.waitForTransactionReceipt({ hash: tx, waitUntil: 'finalized', fullTransaction: true, interval: 5000, retries: 180 });
       validateReceipt(receipt, address, account);
       const next = await waitUntil('Task was not readable after finalization.', async () => {
         try { return await loadTask(taskDraft.taskId); } catch { return undefined; }
@@ -223,7 +223,7 @@ export function AgentLab() {
         }));
         setPendingSubmitTx(submitTx);
         try { localStorage.setItem(pendingKey, JSON.stringify({submitTx,reference:manual.reference})); } catch { /* The receipt stays visible in this session. */ }
-        const submitted = await client.waitForTransactionReceipt({hash:submitTx,waitUntil:'finalized',fullTransaction:true});
+        const submitted = await client.waitForTransactionReceipt({hash:submitTx,waitUntil:'finalized',fullTransaction:true,interval:5000,retries:180});
         validateReceipt(submitted,address,account);
         setMessage('Claim submitted. Waiting for Studio Next to assign a proof ID…');
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -247,7 +247,7 @@ export function AgentLab() {
       }));
       setPendingVerifyTx(verifyTx);
       try { localStorage.setItem(pendingKey, JSON.stringify({submitTx,verifyTx,proofId:id,reference:manual.reference})); } catch { /* The receipt stays visible in this session. */ }
-      const verified = await client.waitForTransactionReceipt({hash:verifyTx,waitUntil:'finalized',fullTransaction:true});
+      const verified = await client.waitForTransactionReceipt({hash:verifyTx,waitUntil:'finalized',fullTransaction:true,interval:5000,retries:180});
       validateReceipt(verified,address,account);
       setMessage(`Proof #${id} sent for verification. Waiting for validator consensus…`);
       const live = await waitUntil('Timed out waiting for validator consensus.', async () => {
