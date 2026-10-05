@@ -49,3 +49,29 @@ it('blocks registration when no contract is deployed', () => {
   render(<WalletApp />);
   expect((screen.getByRole('button', {name: 'Register agent'}) as HTMLButtonElement).disabled).toBe(true);
 });
+
+it('requires login before exposing a signing provider', async () => {
+  render(<WalletApp />);
+  await expect(window.__orivexGetWallet!()).rejects.toThrow('Connect a wallet first');
+  expect(sdk.auth.login).toHaveBeenCalledOnce();
+});
+
+it('asks an authenticated user without a wallet to connect one', async () => {
+  sdk.auth.authenticated = true; sdk.walletState.ready = true;
+  render(<WalletApp />);
+  await expect(window.__orivexGetWallet!()).rejects.toThrow('Connect a wallet first');
+  expect(sdk.auth.connectWallet).toHaveBeenCalledOnce();
+  expect(sdk.auth.login).not.toHaveBeenCalled();
+});
+
+it('removes signing access after logout', async () => {
+  const provider = { request: vi.fn() };
+  sdk.auth.authenticated = true; sdk.walletState.ready = true;
+  sdk.walletState.wallets = [{ address:'0x1111111111111111111111111111111111111111', chainId:'eip155:61997',
+    walletClientType:'metamask', getEthereumProvider:vi.fn().mockResolvedValue(provider) }];
+  const view = render(<WalletApp />);
+  expect((await window.__orivexGetWallet!()).provider).toBe(provider);
+  sdk.auth.authenticated = false; view.rerender(<WalletApp />);
+  await expect(window.__orivexGetWallet!()).rejects.toThrow('Connect a wallet first');
+  expect(provider.request).not.toHaveBeenCalled();
+});

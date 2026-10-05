@@ -87,6 +87,7 @@ export function studioError(error: unknown): string {
   if (/Timed out waiting for Studio Next to assign a proof ID/i.test(text)) return 'Studio Next accepted the wallet transaction but has not assigned a proof ID yet. Wait a few seconds and look the proof up, and inspect the saved transaction; do not submit a duplicate.';
   if (/Timed out waiting for validator consensus/i.test(text)) return 'The verify transaction was sent, but validators have not finalized a judgment yet. Look the proof up by ID in a minute.';
   if (/did not return a (transaction hash|proof ID)/i.test(text)) return text;
+  if (/different wallet for the requester and agent|assigned agent wallet|Wallet must be on Studio Next|RPC returned the wrong chain/i.test(text)) return text;
   if (/Connect a wallet/i.test(text)) return 'Connect a wallet first, then click Verify.';
   if (/4001|UserRejected|denied|rejected/i.test(text)) return 'Wallet request declined. Approve the Studio Next transaction to verify.';
   return 'Studio Next could not finish verification. Check the evidence URL and try again.';

@@ -50,3 +50,31 @@ it('includes both v0.6 fee fields from the live estimate', async () => {
   const fake = {estimateTransactionFees: async () => ({distribution,feeValue:123n})};
   expect(await studioFees(fake as any)).toEqual({distribution,feeValue:123n});
 });
+
+it('adds an unknown Studio Next network before switching', async () => {
+  const { ensureStudioNext } = await import('./studio');
+  let chain = '0x1'; let added = false; const calls: string[] = [];
+  await ensureStudioNext({ request: async ({method, params}) => {
+    calls.push(method);
+    if (method === 'eth_chainId') return chain;
+    if (method === 'wallet_addEthereumChain') { added = true; expect((params![0] as any).chainId).toBe('0xf22d'); return null; }
+    if (method === 'wallet_switchEthereumChain') { if (!added) throw {code:4902}; chain = '0xf22d'; return null; }
+  } });
+  expect(calls).toEqual(['eth_chainId','wallet_switchEthereumChain','wallet_addEthereumChain','wallet_switchEthereumChain','eth_chainId']);
+});
+
+it('does not add a network after a user rejects switching', async () => {
+  const { ensureStudioNext } = await import('./studio'); const methods: string[] = [];
+  await expect(ensureStudioNext({ request: async ({method}) => {
+    methods.push(method); if (method === 'eth_chainId') return '0x1'; throw new Error('4001 User rejected');
+  } })).rejects.toThrow('4001');
+  expect(methods).not.toContain('wallet_addEthereumChain');
+});
+
+it.each([null, {}, '0x123', {hash:'bad'}, {tx_id:'bad'}])('rejects an invalid transaction hash %j', value => {
+  expect(() => txHash(value)).toThrow('transaction hash');
+});
+
+it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER+1, 'bad', undefined])('rejects an invalid proof ID %j', value => {
+  expect(parseProofId(value)).toBeUndefined();
+});

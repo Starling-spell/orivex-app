@@ -28,7 +28,7 @@ const proofTemplates = [
     criterion: 'SUCCESS only if the license explicitly forbids redistribution. FAILED if it explicitly grants permission to distribute the software.' },
 ];
 
-function AgentLab() {
+export function AgentLab() {
   const [templateId, setTemplateId] = useState(proofTemplates[0].id);
   const [templateNotice, setTemplateNotice] = useState('');
   const [taskDraft, setTaskDraft] = useState({ taskId: '', agent: '', claim: '', criterion: '' });
@@ -201,38 +201,52 @@ function AgentLab() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not fetch evidence.'); }
     finally { setManualDigesting(false); }
   }
-  const manualReady = Object.values(manual).every(Boolean) && task?.task_id === manual.taskId && task.status === 'OPEN';
+  const manualReady = task?.task_id === manual.taskId && (task.status === 'OPEN'
+    ? Object.values(manual).every(Boolean) && /^[0-9a-f]{64}$/i.test(manual.digest)
+    : task.status === 'SUBMITTED' && Number.isSafeInteger(task.proof_id) && task.proof_id > 0);
   async function verifyOnchain() {
     if (!manualReady) { setError('Fill every field and hash the evidence before verifying.'); return; }
     setVerifying(true); setError(''); setPendingSubmitTx(''); setPendingVerifyTx('');
     try {
       const { account, client: writer } = await studioWalletWriter();
       const currentTask = await loadTask(manual.taskId);
-      if (currentTask.status !== 'OPEN' || currentTask.agent.toLowerCase() !== account.toLowerCase())
-        throw new Error('Connect the assigned agent wallet to an open task.');
-      setMessage(`Approve the submit transaction in your wallet (${account.slice(0, 6)}…${account.slice(-4)})…`);
-      const submitTx = txHash(await writer.writeContract({
-        address, functionName: 'submit_proof', value: 0n, leaderOnly: false, fees: await studioFees(writer),
-        args: [manual.taskId, manual.reference, manual.url, manual.digest.toLowerCase()],
-      }));
-      setPendingSubmitTx(submitTx);
-      localStorage.setItem(`orivex:61997:${address}:${account}:pending`, JSON.stringify({submitTx,reference:manual.reference}));
-      const submitted = await client.waitForTransactionReceipt({hash:submitTx,waitUntil:'finalized',fullTransaction:true});
-      validateReceipt(submitted,address,account);
-      setMessage('Claim submitted. Waiting for Studio Next to assign a proof ID…');
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const id = await waitUntil('Timed out waiting for Studio Next to assign a proof ID.', async () => {
-        try {
-          return parseProofId(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName: 'get_proof_id', args: [account, manual.reference] }));
-        } catch { return undefined; }
-      }, 40, 3000);
+      if (!['OPEN', 'SUBMITTED'].includes(currentTask.status) || currentTask.agent.toLowerCase() !== account.toLowerCase())
+        throw new Error('Connect the assigned agent wallet to an open or submitted task.');
+      let id = currentTask.proof_id;
+      const pendingKey = `orivex:61997:${address}:${account}:pending`;
+      let submitTx: Hash | '' = '';
+      if (currentTask.status === 'OPEN') {
+        setMessage(`Approve the submit transaction in your wallet (${account.slice(0, 6)}…${account.slice(-4)})…`);
+        submitTx = txHash(await writer.writeContract({
+          address, functionName: 'submit_proof', value: 0n, leaderOnly: false, fees: await studioFees(writer),
+          args: [manual.taskId, manual.reference, manual.url, manual.digest.toLowerCase()],
+        }));
+        setPendingSubmitTx(submitTx);
+        try { localStorage.setItem(pendingKey, JSON.stringify({submitTx,reference:manual.reference})); } catch { /* The receipt stays visible in this session. */ }
+        const submitted = await client.waitForTransactionReceipt({hash:submitTx,waitUntil:'finalized',fullTransaction:true});
+        validateReceipt(submitted,address,account);
+        setMessage('Claim submitted. Waiting for Studio Next to assign a proof ID…');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        id = await waitUntil('Timed out waiting for Studio Next to assign a proof ID.', async () => {
+          try {
+            return parseProofId(await client.readContract({ transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName: 'get_proof_id', args: [account, manual.reference] }));
+          } catch { return undefined; }
+        }, 40, 3000);
+        setTask({ ...currentTask, status: 'SUBMITTED', proof_id: id });
+      }
+      if (!Number.isSafeInteger(id) || id < 1) throw new Error('Submitted task did not return a proof ID.');
       setLookupId(String(id));
       setMessage(`Proof #${id} is on-chain. Approve the verify transaction in your wallet…`);
-      const verifyTx = txHash(await writer.writeContract({
-        address, functionName: 'verify_proof', args: [id], value: 0n, leaderOnly: false,
+      let savedVerifyTx = '';
+      try {
+        const saved = JSON.parse(localStorage.getItem(pendingKey) ?? 'null');
+        if (saved?.proofId === id && /^0x[0-9a-f]{64}$/i.test(saved.verifyTx ?? '')) savedVerifyTx = saved.verifyTx;
+      } catch { /* Verification can continue without browser storage. */ }
+      const verifyTx = savedVerifyTx ? txHash(savedVerifyTx) : txHash(await writer.writeContract({
+        address, functionName: 'verify_proof', args: [id], value: 0n, leaderOnly: false, fees: await studioFees(writer),
       }));
       setPendingVerifyTx(verifyTx);
-      localStorage.setItem(`orivex:61997:${address}:${account}:pending`, JSON.stringify({submitTx,verifyTx,proofId:id,reference:manual.reference}));
+      try { localStorage.setItem(pendingKey, JSON.stringify({submitTx,verifyTx,proofId:id,reference:manual.reference})); } catch { /* The receipt stays visible in this session. */ }
       const verified = await client.waitForTransactionReceipt({hash:verifyTx,waitUntil:'finalized',fullTransaction:true});
       validateReceipt(verified,address,account);
       setMessage(`Proof #${id} sent for verification. Waiting for validator consensus…`);
@@ -255,6 +269,8 @@ function AgentLab() {
       };
       setExamples(items => [...items.filter(entry => entry.id !== item.id), item]);
       setSelected(item.id);
+      setTask({ ...currentTask, status: live.status, proof_id: id });
+      try { localStorage.removeItem(pendingKey); } catch { /* Finalized state remains authoritative. */ }
       if (live.status === 'SUCCESS') await loadVerifiedDirectory();
       setMessage(live.status === 'SUCCESS'
         ? `Validators approved proof #${id}. A nontransferable task credential was issued to ${account}.`
@@ -321,4 +337,5 @@ function AgentLab() {
   </div>;
 }
 
-createRoot(document.getElementById('genlayer-slot')!).render(<AgentLab />);
+const labSlot = document.getElementById('genlayer-slot');
+if (labSlot) createRoot(labSlot).render(<AgentLab />);
