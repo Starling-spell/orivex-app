@@ -2,6 +2,7 @@ import { Component, useEffect, useRef, useState, type FormEvent, type ReactNode 
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
+import { studioDevnet } from 'genlayer-js/chains';
 import { createWalletClient, custom, decodeEventLog, encodeDeployData, formatEther, getAddress, parseAbiItem, type Address, type Hash, type TransactionReceipt } from 'viem';
 import registryArtifact from '../artifacts/AgentRegistry.json';
 import deploymentArtifact from '../artifacts/OrivexDeployment.json';
@@ -307,7 +308,7 @@ class WalletBoundary extends Component<{children: ReactNode}, {failed: boolean}>
 export function mountWallet() {
 createRoot(document.getElementById('wallet-root')!).render(<WalletBoundary>{appId ?
   <PrivyProvider appId={appId} config={{
-    loginMethods: ['wallet', 'email'], defaultChain: chain, supportedChains: [chain],
+    loginMethods: ['wallet', 'email'], defaultChain: chain, supportedChains: [chain, studioDevnet],
     appearance: { theme: 'dark', accentColor: '#79a7ff', walletChainType: 'ethereum-only', showWalletLoginFirst: true },
     embeddedWallets: { ethereum: { createOnLogin: 'users-without-wallets' } },
   }}><WalletApp /></PrivyProvider> : <MissingConfiguration />}</WalletBoundary>);
