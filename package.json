@@ -20,7 +20,8 @@
     "genlayer:publish": "node scripts/publish-studio-next.mjs",
     "pregenlayer:deploy": "npm run genlayer:lint && npm run genlayer:test",
     "genlayer:deploy": "genlayer deploy",
-    "test": "vitest run"
+    "pretest": "node scripts/compile-contracts.mjs",
+    "test": "vitest run --dir src"
   },
   "overrides": {
     "solc": {
