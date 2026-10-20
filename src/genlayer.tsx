@@ -7,6 +7,7 @@ import { canonicalProof, validateProof, validateReceipt, type Proof } from './pr
 import { parseProofId, parseProofRecord, studioError, studioWalletWriter, studioFees, txHash, waitUntil } from './studio';
 import manifest from '../deployments/genlayer-studio-next.json';
 import './genlayer.css';
+import { TaskBoard } from './board';
 
 type Example = { id: string; name: string; capability: string; proofId: number; verifyTx: string;
   proof?: Proof; checkedAt?: string; expected?: string; consensus?: { votes: Record<string, string> };
@@ -284,6 +285,11 @@ export function AgentLab() {
   return <div className="agent-lab">
     <div className="lab-heading"><div><p>GenLayer Studio Next · Chain 61997</p><h2>Inspect an agent’s claim.</h2></div><a href="/docs/guide.html">User guide ↗</a></div>
     <p>A requester fixes the claim and criterion before an agent submits pinned evidence. Validator consensus issues a task credential only for a successful proof.</p>
+    {(manifest as { protocolVersion?: number }).protocolVersion === 4 && <TaskBoard address={address} onUseTask={async taskId => {
+      await loadTask(taskId);
+      setManual({ taskId, reference: `orivex:board-proof:${crypto.randomUUID()}`, url: '', digest: '' });
+      document.querySelector('.manual-proof')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }} />}
     <div className="lab-actions"><button className="btn btn-primary" disabled={loading || checking} onClick={loadExamples}>{loading ? 'Loading receipts…' : 'Load agent examples'}</button><a className="btn btn-ghost" href="https://studio-next.genlayer.com" target="_blank" rel="noreferrer">Open GenLayer Studio ↗</a></div>
     {upgraded && <section className="lab-templates" aria-labelledby="template-heading">
       <h3 id="template-heading">Try an example template</h3>
@@ -323,7 +329,7 @@ export function AgentLab() {
           <dt>Evidence SHA-256</dt><dd><code>{proof.evidence_sha256}</code></dd>
           <dt>Proof SHA-256</dt><dd><code>{proof.proof_hash}</code></dd>
           {entry.verifyTx ? <><dt>Verification transaction</dt><dd><a href={`${explorer}/tx/${entry.verifyTx}`} target="_blank" rel="noreferrer">{entry.verifyTx}</a></dd></> : null}
-          {entry.verifyTx && !entry.id.startsWith('onchain-') ? <><dt>Receipt export</dt><dd><a href={`/receipts/${entry.verifyTx}.json`} target="_blank" rel="noreferrer">Open full consensus receipt JSON ↗</a></dd></> : null}
+          {entry.verifyTx && !entry.id.startsWith('onchain-') ? <><dt>Receipt export</dt><dd><a href={`/receipts/${entry.verifyTx}.json`} target="_blank" rel="noreferrer">Open consensus receipt JSON ↗</a></dd></> : null}
           <dt>Contract</dt><dd><a href={`${explorer}/address/${manifest.address}`} target="_blank" rel="noreferrer">{manifest.address}</a></dd>
           <dt>Submitter</dt><dd><a href={`${explorer}/address/${proof.submitter}`} target="_blank" rel="noreferrer">{proof.submitter}</a></dd>
           {proof.requester && <><dt>Requester</dt><dd><a href={`${explorer}/address/${proof.requester}`} target="_blank" rel="noreferrer">{proof.requester}</a></dd><dt>Task</dt><dd>{proof.task_id}</dd><dt>Credential</dt><dd>{entry.credentialProofId === undefined ? 'Recheck onchain' : entry.credentialProofId === entry.proofId ? `Issued · proof #${entry.proofId}` : 'Not issued'}</dd><dt>Verified work count</dt><dd>{entry.verifiedCount ?? 'Recheck onchain'}</dd></>}

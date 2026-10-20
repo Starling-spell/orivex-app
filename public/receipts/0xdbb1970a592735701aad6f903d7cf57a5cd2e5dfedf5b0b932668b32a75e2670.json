@@ -1,0 +1,12 @@
+{
+  "kind": "CONSENSUS_RECEIPT_SUMMARY",
+  "chainId": 61997,
+  "name": "postHigherGate",
+  "hash": "0xdbb1970a592735701aad6f903d7cf57a5cd2e5dfedf5b0b932668b32a75e2670",
+  "status": "FINALIZED",
+  "execution": "FINISHED_WITH_RETURN",
+  "majority": "MAJORITY_AGREE",
+  "leaderOnly": false,
+  "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+  "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+}

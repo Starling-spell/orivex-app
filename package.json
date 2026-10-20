@@ -15,6 +15,8 @@
     "genlayer:studio": "genlayer network set studio-dev",
     "genlayer:examples": "node scripts/check-studio-next.mjs",
     "genlayer:check": "node scripts/check-studio-next.mjs",
+    "board:check": "node scripts/check-task-board.mjs",
+    "board:demo": "node scripts/task-board-live.mjs --write-demo",
     "genlayer:publish": "node scripts/publish-studio-next.mjs",
     "pregenlayer:deploy": "npm run genlayer:lint && npm run genlayer:test",
     "genlayer:deploy": "genlayer deploy",

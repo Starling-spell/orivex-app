@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 4,
+  "checkedAt": "2026-10-20T13:48:24.920Z",
+  "chainId": 61997,
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "address": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+  "sourceSha256": "83d23db2a74016fbd7d32b0ca900734f1a512be7cd0f93b610e4651926a2fd5d",
+  "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+  "agent": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+  "stranger": "0x8137859bdFB0eC4A7aB60E80551B0cB26d828B5c",
+  "tasks": [
+    {
+      "agent": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "board_task": true,
+      "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
+      "claim_deadline": 1793712933,
+      "claimed_at": 1792503473,
+      "created_at": 1792503433,
+      "credential_issuer": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
+      "minimum_verified": 0,
+      "proof_id": 1,
+      "qualifying_count": 0,
+      "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "status": "SUCCESS",
+      "task_id": "orivex:board:1792503333964:starter"
+    },
+    {
+      "agent": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "board_task": true,
+      "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
+      "claim_deadline": 1793712933,
+      "claimed_at": 1792503623,
+      "created_at": 1792503339,
+      "credential_issuer": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
+      "minimum_verified": 1,
+      "proof_id": 0,
+      "qualifying_count": 1,
+      "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "status": "OPEN",
+      "task_id": "orivex:board:1792503333964:qualified"
+    },
+    {
+      "agent": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "claim": "The license forbids redistribution of the software.",
+      "criterion": "SUCCESS only if the license explicitly forbids redistribution. FAILED if it explicitly grants permission to distribute the software.",
+      "proof_id": 2,
+      "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "status": "FAILED",
+      "task_id": "orivex:board:1792503333964:failed"
+    },
+    {
+      "agent": "",
+      "board_task": true,
+      "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
+      "claim_deadline": 1793712933,
+      "created_at": 1792503886,
+      "credential_issuer": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
+      "minimum_verified": 2,
+      "proof_id": 0,
+      "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "status": "CANCELLED",
+      "task_id": "orivex:board:1792503333964:gated"
+    },
+    {
+      "agent": "",
+      "board_task": true,
+      "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
+      "claim_deadline": 1793712933,
+      "created_at": 1792504057,
+      "credential_issuer": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
+      "minimum_verified": 0,
+      "proof_id": 0,
+      "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "status": "AVAILABLE",
+      "task_id": "orivex:board:1792503333964:public"
+    }
+  ],
+  "proof": {
+    "board_task": true,
+    "chain_id": 61997,
+    "claim": "The document permits redistribution of the software subject to keeping the copyright and permission notice.",
+    "claim_deadline": 1793712933,
+    "contract_address": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+    "credential_issuer": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+    "criterion": "SUCCESS if the license text explicitly grants distribution rights and requires preserving these notices.",
+    "domain": "orivex.evidence-proof.v3",
+    "evidence_sha256": "13cd784a6c31361f0e0c6aa3b410a1cb9a079868b7314c13e3eb8a75351746b9",
+    "evidence_url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/c64a1edb67b6e3f4a15cca8909c9482ad33a02b0/LICENSE",
+    "minimum_verified": 0,
+    "proof_hash": "2a2e18f41a4d050c34c5c7c3de9d7e4053aa1e7754e00ce5c728cbc6b995c437",
+    "proof_id": 1,
+    "qualifying_count": 0,
+    "reference_id": "orivex:board:1792503333964:proof",
+    "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+    "schema_version": 3,
+    "status": "SUCCESS",
+    "submitter": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+    "task_id": "orivex:board:1792503333964:starter"
+  },
+  "failedProof": {
+    "chain_id": 61997,
+    "claim": "The license forbids redistribution of the software.",
+    "contract_address": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+    "criterion": "SUCCESS only if the license explicitly forbids redistribution. FAILED if it explicitly grants permission to distribute the software.",
+    "domain": "orivex.evidence-proof.v3",
+    "evidence_sha256": "13cd784a6c31361f0e0c6aa3b410a1cb9a079868b7314c13e3eb8a75351746b9",
+    "evidence_url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/c64a1edb67b6e3f4a15cca8909c9482ad33a02b0/LICENSE",
+    "proof_hash": "461ce4c1f484896211d0efacd826f40755bbf137c60a82976602c16b3e574a80",
+    "proof_id": 2,
+    "reference_id": "orivex:board:1792503333964:failed-proof",
+    "requester": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+    "schema_version": 3,
+    "status": "FAILED",
+    "submitter": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+    "task_id": "orivex:board:1792503333964:failed"
+  },
+  "issuerVerifiedCount": 1,
+  "transactions": {
+    "deployment": {
+      "hash": "0x50cfe54d50bb35663cf25c00838781b1f78c9aebd30e2330f57d969fdf260cf4",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "postQualified": {
+      "hash": "0x1a19411cd9338d2cf852ba6b726654c66f3248fd90a417d2e6a802548368e87b",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "rejectUnqualified": {
+      "hash": "0xed5fe13e1b5fa6dc53fd87b4992897666dc6fe189d9f67a7cdae243a063d1ac7",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_ERROR",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+      "expectedError": "CREDENTIAL_REQUIRED"
+    },
+    "postStarter": {
+      "hash": "0x3c97d9e1622095c6994580b35341296111a283f2ca10147ff987866d63514c8b",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "claimStarter": {
+      "hash": "0x098e83d52c18d82207cf306ff473002878e119dfa807e8244ad1f3127a7a8acb",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "submitStarter": {
+      "hash": "0xbd8a03a2763be0e5ed5e22ab7dfabdc7fe51dfebaac779890ff170e81b539286",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "verifyStarter": {
+      "hash": "0x35c04c339e82ec52d13c3d0ac1bb268527ad18dcf981d98c9b9c4b5b85848212",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "claimQualified": {
+      "hash": "0x2e3dff8b8a7864eb9be960d490152a563877945768c4fa25743b213aef2bf9db",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "rejectReplay": {
+      "hash": "0x321172f8eda2c6cccf894e50cbc8d948ae6a85b23cb25389384b27569993d700",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_ERROR",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x8137859bdFB0eC4A7aB60E80551B0cB26d828B5c",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+      "expectedError": "NOT_AVAILABLE"
+    },
+    "rejectCancelClaimed": {
+      "hash": "0x3bb941e57c8fd3d15b4a6b9b1f7e8c7352d4e45ff7db0d7efa6516ee59c1f2f9",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_ERROR",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+      "expectedError": "only unclaimed"
+    },
+    "createFailedTask": {
+      "hash": "0xeb38260d46efd277d0646da9c4b34cf1343fc3ebf587aede9602a8f1e99395df",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "submitFailed": {
+      "hash": "0x6c8b5ceb3edbf589b17651b60a3e4a947180de8626e531e9e7700ac4c4b08d47",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "verifyFailed": {
+      "hash": "0x8a07b3db2cf3584ca7835027e2620b56a1eaee55b486aa18243db863d68e5d44",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "postHigherGate": {
+      "hash": "0xdbb1970a592735701aad6f903d7cf57a5cd2e5dfedf5b0b932668b32a75e2670",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "rejectAfterFailedProof": {
+      "hash": "0x2724a2f08bf4e41e9d8681404a171a3ca3846a9b2dc292283bdb67f9ba1a60af",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_ERROR",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+      "expectedError": "CREDENTIAL_REQUIRED"
+    },
+    "cancelUnclaimed": {
+      "hash": "0xcd5422eb2ff301c0160de9edc3d8f290e490d5d6171bca67191317ed56eba3a8",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    },
+    "rejectCancelled": {
+      "hash": "0x350c737c672a1c0bffbb380caceaff1d50290eadb89d4e1b17ac4ffdcbe93d69",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_ERROR",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+      "expectedError": "NOT_AVAILABLE"
+    },
+    "postPublicExample": {
+      "hash": "0x3eeb56709c679c6232956fdd4e489fa42d40321db2d5402a15c308d091e42928",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "majority": "MAJORITY_AGREE",
+      "leaderOnly": false,
+      "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+      "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    }
+  },
+  "scope": "Credential-gated task assignment only. No payments or token rewards; distinct wallets do not prove independent owners."
+}

@@ -1,9 +1,10 @@
 # v0.2.0
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
-"""Requester-defined tasks and consensus-backed agent credentials."""
+"""Requester-defined tasks, issuer-scoped credentials and open task assignment."""
 
 from genlayer import *
+from datetime import datetime, timezone
 import hashlib
 import json
 import re
@@ -50,6 +51,8 @@ class OrivexProofRegistry(gl.Contract):
     task_records: TreeMap[str, str]
     credentials: TreeMap[str, u256]
     verified_counts: TreeMap[str, u256]
+    issuer_verified_counts: TreeMap[str, u256]
+    board_ids: DynArray[str]
 
     def __init__(self):
         self.next_proof_id = 1
@@ -58,6 +61,82 @@ class OrivexProofRegistry(gl.Contract):
         if proof_id not in self.proof_records:
             _fail("[EXPECTED]", "unknown proof")
         return self.proof_records[proof_id]
+
+    def _now(self) -> int:
+        return int(datetime.now(timezone.utc).timestamp())
+
+    def _issuer_count(self, issuer: str, agent: str) -> int:
+        key = json.dumps([issuer.lower(), agent.lower()])
+        return int(self.issuer_verified_counts[key]) if key in self.issuer_verified_counts else 0
+
+    def _eligibility(self, task: dict, agent: str) -> dict:
+        count = self._issuer_count(task.get("credential_issuer", ""), agent)
+        if not task.get("board_task"):
+            reason = "DIRECT_ASSIGNMENT"
+        elif task["status"] != "AVAILABLE":
+            reason = "NOT_AVAILABLE"
+        elif self._now() >= task["claim_deadline"]:
+            reason = "EXPIRED"
+        elif task["requester"].lower() == agent.lower():
+            reason = "REQUESTER_CANNOT_CLAIM"
+        elif count < task["minimum_verified"]:
+            reason = "CREDENTIAL_REQUIRED"
+        else:
+            reason = "ELIGIBLE"
+        return {"eligible": reason == "ELIGIBLE", "reason": reason,
+                "verified_count": count, "minimum_verified": task.get("minimum_verified", 0)}
+
+    @gl.public.write
+    def post_task(self, task_id: str, claim: str, criterion: str,
+                  credential_issuer: Address, minimum_verified: u256, claim_deadline: u256) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9:_-]{1,128}", task_id) or task_id in self.task_records:
+            _fail("[EXPECTED]", "task_id is invalid or already used")
+        if not claim.strip() or len(claim) > 2048 or not criterion.strip() or len(criterion) > 2048:
+            _fail("[EXPECTED]", "claim and criterion must contain 1 to 2048 characters")
+        now = self._now()
+        if int(claim_deadline) <= now or int(claim_deadline) > now + 30 * 86400:
+            _fail("[EXPECTED]", "claim deadline must be within the next 30 days")
+        if int(minimum_verified) > 1000:
+            _fail("[EXPECTED]", "minimum_verified must be at most 1000")
+        if int(minimum_verified) and str(credential_issuer).lower() == "0x" + "0" * 40:
+            _fail("[EXPECTED]", "a credential issuer is required")
+        task = {"task_id": task_id, "requester": str(gl.message.sender_address),
+                "agent": "", "claim": claim, "criterion": criterion,
+                "status": "AVAILABLE", "proof_id": 0, "board_task": True,
+                "credential_issuer": str(credential_issuer), "minimum_verified": int(minimum_verified),
+                "claim_deadline": int(claim_deadline), "created_at": now}
+        self.task_records[task_id] = json.dumps(task, sort_keys=True)
+        self.board_ids.append(task_id)
+        return task_id
+
+    @gl.public.write
+    def claim_task(self, task_id: str) -> str:
+        if task_id not in self.task_records:
+            _fail("[EXPECTED]", "unknown task")
+        task = json.loads(self.task_records[task_id])
+        agent = str(gl.message.sender_address)
+        eligibility = self._eligibility(task, agent)
+        if not eligibility["eligible"]:
+            _fail("[EXPECTED]", eligibility["reason"])
+        task["status"] = "OPEN"
+        task["agent"] = agent
+        task["claimed_at"] = self._now()
+        task["qualifying_count"] = eligibility["verified_count"]
+        self.task_records[task_id] = json.dumps(task, sort_keys=True)
+        return task_id
+
+    @gl.public.write
+    def cancel_task(self, task_id: str) -> str:
+        if task_id not in self.task_records:
+            _fail("[EXPECTED]", "unknown task")
+        task = json.loads(self.task_records[task_id])
+        if task["requester"].lower() != str(gl.message.sender_address).lower():
+            _fail("[EXPECTED]", "only requester may cancel")
+        if not task.get("board_task") or task["status"] != "AVAILABLE":
+            _fail("[EXPECTED]", "only unclaimed board tasks may be cancelled")
+        task["status"] = "CANCELLED"
+        self.task_records[task_id] = json.dumps(task, sort_keys=True)
+        return task_id
 
     @gl.public.write
     def create_task(self, task_id: str, agent: Address, claim: str, criterion: str) -> str:
@@ -122,6 +201,9 @@ class OrivexProofRegistry(gl.Contract):
             "status": "PENDING",
             "proof_hash": "",
         }
+        if task.get("board_task"):
+            for key in ("board_task", "credential_issuer", "minimum_verified", "claim_deadline", "qualifying_count"):
+                record[key] = task[key]
         self.proof_records[proof_id] = json.dumps(record, sort_keys=True)
         self.reference_ids[reference_key] = proof_id
         task["status"] = "SUBMITTED"
@@ -200,6 +282,8 @@ class OrivexProofRegistry(gl.Contract):
             agent = record["submitter"]
             self.credentials[json.dumps([agent, record["task_id"]])] = proof_id
             self.verified_counts[agent] = (self.verified_counts[agent] if agent in self.verified_counts else 0) + 1
+            issuer_key = json.dumps([record["requester"].lower(), agent.lower()])
+            self.issuer_verified_counts[issuer_key] = self._issuer_count(record["requester"], agent) + 1
         return proof_hash
 
     @gl.public.view
@@ -221,7 +305,10 @@ class OrivexProofRegistry(gl.Contract):
     def get_task(self, task_id: str) -> str:
         if task_id not in self.task_records:
             _fail("[EXPECTED]", "unknown task")
-        return self.task_records[task_id]
+        task = json.loads(self.task_records[task_id])
+        if task.get("board_task") and task["status"] == "AVAILABLE" and self._now() >= task["claim_deadline"]:
+            task["status"] = "EXPIRED"
+        return json.dumps(task, sort_keys=True)
 
     @gl.public.view
     def get_credential(self, agent: Address, task_id: str) -> u256:
@@ -232,3 +319,26 @@ class OrivexProofRegistry(gl.Contract):
     def get_verified_count(self, agent: Address) -> u256:
         key = str(agent)
         return self.verified_counts[key] if key in self.verified_counts else 0
+
+    @gl.public.view
+    def get_issuer_verified_count(self, issuer: Address, agent: Address) -> u256:
+        return self._issuer_count(str(issuer), str(agent))
+
+    @gl.public.view
+    def get_eligibility(self, task_id: str, agent: Address) -> str:
+        if task_id not in self.task_records:
+            _fail("[EXPECTED]", "unknown task")
+        return json.dumps(self._eligibility(json.loads(self.task_records[task_id]), str(agent)), sort_keys=True)
+
+    @gl.public.view
+    def list_board_tasks(self, offset: u256, limit: u256) -> str:
+        if int(limit) < 1 or int(limit) > 20:
+            _fail("[EXPECTED]", "page size must be 1 to 20")
+        total = len(self.board_ids)
+        tasks = [json.loads(self.get_task(self.board_ids[total - 1 - index]))
+                 for index in range(int(offset), min(total, int(offset) + int(limit)))]
+        return json.dumps({"total": total, "tasks": tasks}, sort_keys=True)
+
+    @gl.public.view
+    def get_protocol_version(self) -> u256:
+        return 4

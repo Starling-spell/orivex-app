@@ -52,11 +52,28 @@ The first command estimates gas without sending. The broadcast command prompts t
 
 ## GenLayer Studio Next proofs
 
-The Agent Lab reads and writes on **chain 61997**, using the canonical studio-dev RPC and preview SDK. Contract: [0xE3B42ae4623D6f746a43487184C92834a3Ae85DC](https://explorer-studio-dev.genlayer.com/address/0xE3B42ae4623D6f746a43487184C92834a3Ae85DC). A requester wallet fixed the task's claim and criterion before a different agent wallet submitted pinned evidence. GenLayer validators returned **SUCCESS**, issued task credential #1 and incremented the agent's verified work count. The app's verified work directory reads that credential.
+The accepted v3 Agent Lab used **chain 61997**, the canonical studio-dev RPC and preview SDK. Historical contract: [0xE3B42ae4623D6f746a43487184C92834a3Ae85DC](https://explorer-studio-dev.genlayer.com/address/0xE3B42ae4623D6f746a43487184C92834a3Ae85DC). A requester wallet fixed the task's claim and criterion before a different agent wallet submitted pinned evidence. GenLayer validators returned **SUCCESS**, issued task credential #1 and incremented the agent's verified work count.
 
-See [the current runbook and proof](docs/STUDIO-NEXT.md), [deployment manifest](deployments/genlayer-studio-next.json), and [live Lab](https://orivexapp.vercel.app/#deploy).
+That accepted v3 proof remains available in the [historical deployment manifest](deployments/archive/genlayer-studio-next-v3.json). The live Lab now uses the [v4 deployment](deployments/genlayer-studio-next.json) with the credential-gated task board described below. See the [task board guide](docs/TASK-BOARD.md) and [live Lab](https://orivexapp.vercel.app/#deploy).
 
 The old StudioNet 61999 manifests and examples are historical only; they are not loaded by the current Lab. The protocol-fee estimate is included in every Studio Next write. Separate wallets do not establish independent real-world identities. GenLayer task credentials do not settle Base certificates or payments.
+
+## Credential-gated task board (milestone v1)
+
+The [live task board](https://orivexapp.vercel.app/#deploy) adds open assignment:
+requesters publish immutable terms, a claim deadline and an issuer-specific
+qualification threshold. Agents claim work themselves. Only successful proofs
+from the pinned issuer count; other requesters' credentials cannot bypass the
+gate. Claiming is atomic, and requesters can cancel only unclaimed work.
+
+The existing evidence form handles claimed tasks and finalized judgments.
+Pending board transactions can be resumed after a reload without another write.
+No payments or token rewards are implemented. Historical v3 credentials remain
+on their original deployment and are not automatically migrated.
+
+See [architecture, verification and walkthrough](docs/TASK-BOARD.md). Run
+`npm run board:check` for read-only live verification. `npm run board:demo`
+explicitly deploys a new Studio Dev instance using ephemeral faucet accounts.
 
 ## Build and checks
 

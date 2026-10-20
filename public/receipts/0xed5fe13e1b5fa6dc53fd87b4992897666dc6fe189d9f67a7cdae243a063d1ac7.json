@@ -1,0 +1,13 @@
+{
+  "kind": "CONSENSUS_RECEIPT_SUMMARY",
+  "chainId": 61997,
+  "name": "rejectUnqualified",
+  "hash": "0xed5fe13e1b5fa6dc53fd87b4992897666dc6fe189d9f67a7cdae243a063d1ac7",
+  "status": "FINALIZED",
+  "execution": "FINISHED_WITH_ERROR",
+  "majority": "MAJORITY_AGREE",
+  "leaderOnly": false,
+  "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+  "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+  "expectedError": "CREDENTIAL_REQUIRED"
+}

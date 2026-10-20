@@ -1,0 +1,12 @@
+{
+  "kind": "CONSENSUS_RECEIPT_SUMMARY",
+  "chainId": 61997,
+  "name": "verifyStarter",
+  "hash": "0x35c04c339e82ec52d13c3d0ac1bb268527ad18dcf981d98c9b9c4b5b85848212",
+  "status": "FINALIZED",
+  "execution": "FINISHED_WITH_RETURN",
+  "majority": "MAJORITY_AGREE",
+  "leaderOnly": false,
+  "sender": "0x83d802A05f46cD6a4d95E5677bbA3cD97b429f3d",
+  "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+}

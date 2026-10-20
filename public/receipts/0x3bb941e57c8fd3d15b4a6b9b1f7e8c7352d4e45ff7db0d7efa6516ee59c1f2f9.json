@@ -1,0 +1,13 @@
+{
+  "kind": "CONSENSUS_RECEIPT_SUMMARY",
+  "chainId": 61997,
+  "name": "rejectCancelClaimed",
+  "hash": "0x3bb941e57c8fd3d15b4a6b9b1f7e8c7352d4e45ff7db0d7efa6516ee59c1f2f9",
+  "status": "FINALIZED",
+  "execution": "FINISHED_WITH_ERROR",
+  "majority": "MAJORITY_AGREE",
+  "leaderOnly": false,
+  "sender": "0x86A3bd36bc4371BD327a1b4BE4cF52B6924606B1",
+  "contract": "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a",
+  "expectedError": "only unclaimed"
+}

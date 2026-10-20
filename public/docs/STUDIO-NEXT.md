@@ -1,8 +1,13 @@
 # Studio Next docs
 
+The deployment below is the accepted v3 baseline. The live app now uses v4:
+see the [credential-gated task board](TASK-BOARD.md), its
+[current deployment](../deployments/genlayer-studio-next.json), and
+[transaction evidence](../deployments/task-board-studio-next.json).
+
 Use the [live Agent Lab](https://orivexapp.vercel.app/#deploy) to submit and inspect evidence proofs on Studio Next.
 
-## Verified deployment
+## Historical v3 verified deployment
 
 - Network: Studio Next / `studio-dev`
 - Chain ID: `61997`

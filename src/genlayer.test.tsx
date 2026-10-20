@@ -7,6 +7,7 @@ import { canonicalProof } from './proof';
 
 const rpc = vi.hoisted(() => ({ readContract: vi.fn(), waitForTransactionReceipt: vi.fn(), writeContract: vi.fn(), wallet: vi.fn() }));
 vi.mock('genlayer-js', () => ({ createClient: () => rpc }));
+vi.mock('./board', () => ({ TaskBoard: () => null }));
 vi.mock('./studio', async importOriginal => {
   const original = await importOriginal<typeof import('./studio')>();
   return { ...original, studioWalletWriter: rpc.wallet, studioFees: async () => ({ distribution: { test: true }, feeValue: 123n }),

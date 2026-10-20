@@ -10,7 +10,7 @@ URL = "https://raw.githubusercontent.com/example/evidence/" + "a" * 40 + "/repor
 
 @pytest.fixture
 def registry(direct_deploy):
-    return direct_deploy("contracts/OrivexProofRegistry.py")
+    return direct_deploy("contracts/OrivexProofRegistry.py", sdk_version="v0.2.16")
 
 
 def submit(registry, vm, requester, agent, reference="action-1", task_id="task-1", url=URL, digest=None):
