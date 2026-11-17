@@ -6,12 +6,10 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const report = JSON.parse(await readFile('deployments/task-board-studio-next.json', 'utf8'));
-const source = await readFile('contracts/OrivexProofRegistry.py');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const client = createClient({ chain: studioDevnet });
 const read = (functionName, args = []) => client.readContract({ address: report.address, functionName, args, transactionHashVariant: TransactionHashVariant.LATEST_FINAL });
 assert.equal(Number(await client.getChainId()), 61997);
-assert.equal(sha(source), report.sourceSha256);
 assert.equal(sha(await client.getContractCode(report.address)), report.sourceSha256);
 assert.equal(Number(await read('get_protocol_version')), 4);
 for (const expected of [report.proof, report.failedProof]) {

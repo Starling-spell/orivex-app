@@ -5,7 +5,8 @@ import { studioDevnet } from 'genlayer-js/chains';
 import { TransactionHashVariant, type Hash } from 'genlayer-js/types';
 import { canonicalProof, validateProof, validateReceipt, type Proof } from './proof';
 import { parseProofId, parseProofRecord, studioError, studioWalletWriter, studioFees, txHash, waitUntil } from './studio';
-import manifest from '../deployments/genlayer-studio-next.json';
+import previousBoard from '../deployments/genlayer-studio-next.json';
+import portableBoard from '../deployments/portable-board-studio-next.json';
 import './genlayer.css';
 import { TaskBoard } from './board';
 
@@ -16,6 +17,9 @@ type Task = { task_id: string; requester: string; agent: string; claim: string; 
   status: string; proof_id: number };
 type VerifiedWork = { proofId: number; taskId: string; agent: string; requester: string };
 const client = createClient({ chain: studioDevnet });
+const isPortableBoard = new URLSearchParams(window.location.search).get('board') === 'portable';
+const manifest = isPortableBoard ? portableBoard : previousBoard;
+const boardVersion = (manifest as { protocolVersion?: number }).protocolVersion;
 if (manifest.chainId !== 61997 || studioDevnet.id !== 61997) throw new Error('Lab deployment must use Studio Next (61997).');
 const explorer = 'https://explorer-studio-dev.genlayer.com';
 const address = manifest.address as `0x${string}`;
@@ -67,19 +71,23 @@ export function AgentLab() {
   async function loadExamples() {
     setLoading(true); setError('');
     try {
-      const response = await fetch('/genlayer-next-examples.json', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Example receipts are not available yet. Run npm run genlayer:examples, then npm run genlayer:publish.');
-      const report = await response.json();
-      if (report.address !== manifest.address || report.chainId !== 61997 || !Array.isArray(report.examples)) throw new Error('Example deployment does not match this build.');
-      const records = report.examples.filter((item: Example) => item.proof && item.verifyTx);
+      let records: Example[] = [];
+      if (!isPortableBoard) {
+        const response = await fetch('/genlayer-next-examples.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Example receipts are not available yet. Run npm run genlayer:examples, then npm run genlayer:publish.');
+        const report = await response.json();
+        if (report.address !== manifest.address || report.chainId !== 61997 || !Array.isArray(report.examples)) throw new Error('Example deployment does not match this build.');
+        records = report.examples.filter((item: Example) => item.proof && item.verifyTx);
+      }
       for (const item of records) {
+        if (!item.proof) throw new Error('Missing saved proof.');
         validateProof(item.proof, manifest.address, item.proofId);
         if (await hash(canonicalProof(item.proof)) !== item.proof.proof_hash) throw new Error('Saved proof hash mismatch.');
       }
       const latest = await loadLatestOnchain(records.map((item: Example) => item.proofId));
       if (upgraded) await loadVerifiedDirectory();
       setExamples(latest ? [smoke, ...records, latest] : [smoke, ...records]);
-      setMessage(latest
+      setMessage(isPortableBoard && !latest ? 'Portable credential receipt loaded. Recheck to read Studio Next now.' : latest
         ? `${records.length} saved receipts loaded, plus live proof #${latest.proofId}. Select one, then recheck onchain.`
         : `${records.length} agent example receipts loaded. Select one, then recheck onchain.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load examples.'); }
@@ -285,7 +293,12 @@ export function AgentLab() {
   return <div className="agent-lab">
     <div className="lab-heading"><div><p>GenLayer Studio Next · Chain 61997</p><h2>Inspect an agent’s claim.</h2></div><a href="/docs/guide.html">User guide ↗</a></div>
     <p>A requester fixes the claim and criterion before an agent submits pinned evidence. Validator consensus issues a task credential only for a successful proof.</p>
-    {(manifest as { protocolVersion?: number }).protocolVersion === 4 && <TaskBoard address={address} onUseTask={async taskId => {
+    {(boardVersion === 4 || boardVersion === 5) && <div className="lab-actions">
+      {isPortableBoard
+        ? <a className="btn btn-ghost" href="/#deploy">Open previous board</a>
+        : <a className="btn btn-ghost" href="/?board=portable#deploy">Open portable credential board</a>}
+    </div>}
+    {(boardVersion === 4 || boardVersion === 5) && <TaskBoard address={address} portableRegistry={isPortableBoard ? portableBoard.legacyRegistry : undefined} onUseTask={async taskId => {
       await loadTask(taskId);
       setManual({ taskId, reference: `orivex:board-proof:${crypto.randomUUID()}`, url: '', digest: '' });
       document.querySelector('.manual-proof')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

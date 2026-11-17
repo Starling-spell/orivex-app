@@ -20,7 +20,9 @@ assert.equal(Number(await requester.getChainId()), 61997);
 for (const account of [requesterAccount, agentAccount, strangerAccount]) {
   await requester.request({ method: 'sim_fundAccount', params: [account.address, 10_000_000_000_000_000_000] });
 }
-const source = await readFile('contracts/OrivexProofRegistry.py');
+const baseline = JSON.parse(await readFile('deployments/task-board-studio-next.json', 'utf8'));
+const source = Buffer.from(await requester.getContractCode(baseline.address));
+assert.equal(sha(source), baseline.sourceSha256);
 const previous = JSON.parse(await readFile('deployments/genlayer-studio-next.json', 'utf8'));
 assert.equal(previous.smoke.proof.schema_version, 3);
 const fixture = previous.smoke.proof;

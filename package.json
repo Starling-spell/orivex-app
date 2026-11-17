@@ -17,6 +17,8 @@
     "genlayer:check": "node scripts/check-studio-next.mjs",
     "board:check": "node scripts/check-task-board.mjs",
     "board:demo": "node scripts/task-board-live.mjs --write-demo",
+    "board:portable:check": "node scripts/portable-board-live.mjs --check",
+    "board:portable:demo": "node scripts/portable-board-live.mjs --write-demo",
     "genlayer:publish": "node scripts/publish-studio-next.mjs",
     "pregenlayer:deploy": "npm run genlayer:lint && npm run genlayer:test",
     "genlayer:deploy": "genlayer deploy",

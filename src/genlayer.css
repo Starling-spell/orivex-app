@@ -14,6 +14,7 @@
 .board-detail dt { margin-top: 16px; font-size: 12px; }
 .board-detail dd { margin: 4px 0; overflow-wrap: anywhere; }
 .task-board .manual-grid input, .task-board .manual-grid textarea { min-width: 0; }
+.task-board .manual-grid select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; background: #0d1322; border: 1px solid #2a3855; color: #fff; border-radius: 8px; padding: 10px; font: inherit; }
 .task-board button:focus-visible, .task-board input:focus-visible, .task-board textarea:focus-visible, .task-board summary:focus-visible { outline: 2px solid #aec8ff; outline-offset: 4px; }
 .task-board button:disabled { cursor: default; opacity: .55; }
 .status-available, .status-open { color: #81e0b7; }

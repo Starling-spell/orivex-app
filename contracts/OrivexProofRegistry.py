@@ -8,10 +8,12 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import re
+from genlayer.py.public_abi import StorageType
 
 
 ERROR_LLM = "[LLM_ERROR]"
 ERROR_EXTERNAL = "[EXTERNAL]"
+PORTABLE_REGISTRY = "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
 
 
 def _fail(prefix: str, message: str):
@@ -70,7 +72,8 @@ class OrivexProofRegistry(gl.Contract):
         return int(self.issuer_verified_counts[key]) if key in self.issuer_verified_counts else 0
 
     def _eligibility(self, task: dict, agent: str) -> dict:
-        count = self._issuer_count(task.get("credential_issuer", ""), agent)
+        registry = task.get("credential_registry", "")
+        count = 0 if registry else self._issuer_count(task.get("credential_issuer", ""), agent)
         if not task.get("board_task"):
             reason = "DIRECT_ASSIGNMENT"
         elif task["status"] != "AVAILABLE":
@@ -79,16 +82,43 @@ class OrivexProofRegistry(gl.Contract):
             reason = "EXPIRED"
         elif task["requester"].lower() == agent.lower():
             reason = "REQUESTER_CANNOT_CLAIM"
-        elif count < task["minimum_verified"]:
-            reason = "CREDENTIAL_REQUIRED"
         else:
             reason = "ELIGIBLE"
-        return {"eligible": reason == "ELIGIBLE", "reason": reason,
-                "verified_count": count, "minimum_verified": task.get("minimum_verified", 0)}
+            if registry:
+                try:
+                    source = gl.get_contract_at(Address(registry)).view(state=StorageType.LATEST_FINAL)
+                    value = source.get_issuer_verified_count(Address(task["credential_issuer"]), Address(agent))
+                    if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 9007199254740991:
+                        count = int(value)
+                    else:
+                        reason = "CREDENTIAL_SOURCE_UNAVAILABLE"
+                except Exception:
+                    reason = "CREDENTIAL_SOURCE_UNAVAILABLE"
+            if reason == "ELIGIBLE" and count < task["minimum_verified"]:
+                reason = "CREDENTIAL_REQUIRED"
+        result = {"eligible": reason == "ELIGIBLE", "reason": reason,
+                  "verified_count": count, "minimum_verified": task.get("minimum_verified", 0)}
+        if registry:
+            result["credential_registry"] = registry
+        return result
 
     @gl.public.write
     def post_task(self, task_id: str, claim: str, criterion: str,
                   credential_issuer: Address, minimum_verified: u256, claim_deadline: u256) -> str:
+        return self._post_task(task_id, claim, criterion, credential_issuer, minimum_verified, claim_deadline, "")
+
+    @gl.public.write
+    def post_portable_task(self, task_id: str, claim: str, criterion: str,
+                           credential_issuer: Address, minimum_verified: u256, claim_deadline: u256) -> str:
+        registry = self.get_portable_registry()
+        if not registry:
+            _fail("[EXPECTED]", "CREDENTIAL_SOURCE_UNAVAILABLE")
+        if not int(minimum_verified):
+            _fail("[EXPECTED]", "portable tasks require a positive credential threshold")
+        return self._post_task(task_id, claim, criterion, credential_issuer, minimum_verified, claim_deadline, registry)
+
+    def _post_task(self, task_id: str, claim: str, criterion: str, credential_issuer: Address,
+                   minimum_verified: u256, claim_deadline: u256, registry: str) -> str:
         if not re.fullmatch(r"[A-Za-z0-9:_-]{1,128}", task_id) or task_id in self.task_records:
             _fail("[EXPECTED]", "task_id is invalid or already used")
         if not claim.strip() or len(claim) > 2048 or not criterion.strip() or len(criterion) > 2048:
@@ -105,6 +135,8 @@ class OrivexProofRegistry(gl.Contract):
                 "status": "AVAILABLE", "proof_id": 0, "board_task": True,
                 "credential_issuer": str(credential_issuer), "minimum_verified": int(minimum_verified),
                 "claim_deadline": int(claim_deadline), "created_at": now}
+        if registry:
+            task["credential_registry"] = registry
         self.task_records[task_id] = json.dumps(task, sort_keys=True)
         self.board_ids.append(task_id)
         return task_id
@@ -204,6 +236,8 @@ class OrivexProofRegistry(gl.Contract):
         if task.get("board_task"):
             for key in ("board_task", "credential_issuer", "minimum_verified", "claim_deadline", "qualifying_count"):
                 record[key] = task[key]
+            if "credential_registry" in task:
+                record["credential_registry"] = task["credential_registry"]
         self.proof_records[proof_id] = json.dumps(record, sort_keys=True)
         self.reference_ids[reference_key] = proof_id
         task["status"] = "SUBMITTED"
@@ -340,5 +374,11 @@ class OrivexProofRegistry(gl.Contract):
         return json.dumps({"total": total, "tasks": tasks}, sort_keys=True)
 
     @gl.public.view
+    def get_portable_registry(self) -> str:
+        if int(gl.message.chain_id) == 61997 and str(gl.message.contract_address).lower() != PORTABLE_REGISTRY.lower():
+            return PORTABLE_REGISTRY
+        return ""
+
+    @gl.public.view
     def get_protocol_version(self) -> u256:
-        return 4
+        return 5

@@ -1,6 +1,8 @@
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -26,6 +28,79 @@ def qualify(board, vm, issuer, agent, status="SUCCESS", task_id="qualification")
     mocks(vm, status)
     board.verify_proof(proof_id)
     return proof_id
+
+
+@pytest.fixture
+def portable(board, direct_vm, direct_alice, direct_bob, monkeypatch):
+    direct_vm._chain_id = 61997
+    registry = "0xe9045A2ea5A5F43eB6677e2ae6b02E67E8b3B53a"
+    module = sys.modules[type(object.__getattribute__(board, "_instance")).__module__]
+    rows = {}
+    reads = []
+
+    def contract_at(address):
+        def view(*, state):
+            reads.append((str(address).lower(), state.name))
+            return SimpleNamespace(get_issuer_verified_count=lambda issuer, agent: rows[str(issuer).lower(), str(agent).lower()])
+        return SimpleNamespace(view=view)
+
+    monkeypatch.setattr(module.gl, "get_contract_at", contract_at)
+    direct_vm.sender = direct_alice
+    board.post_portable_task("portable", "Review", "The document supports the claim", direct_alice, 1, NOW + 3600)
+    rows[str(direct_alice).lower(), str(direct_bob).lower()] = 0
+    return registry, rows, reads
+
+
+def test_portable_offer_uses_old_count_only_and_commits_source(portable, board, direct_vm, direct_alice, direct_bob):
+    registry, rows, reads = portable
+    qualify(board, direct_vm, direct_alice, direct_bob)
+    assert board.get_issuer_verified_count(direct_alice, direct_bob) == 1
+    reason = json.loads(board.get_eligibility("portable", direct_bob))["reason"]
+    assert reads == [(registry.lower(), "LATEST_FINAL")]
+    assert reason == "CREDENTIAL_REQUIRED"
+    with direct_vm.expect_revert("CREDENTIAL_REQUIRED"):
+        board.claim_task("portable")
+    rows[str(direct_alice).lower(), str(direct_bob).lower()] = 1
+    board.claim_task("portable")
+    assignment = json.loads(board.get_task("portable"))
+    assert assignment["credential_registry"] == registry
+    assert assignment["qualifying_count"] == 1
+    proof = board.submit_proof("portable", "portable-proof", URL, hashlib.sha256(BODY).hexdigest())
+    mocks(direct_vm)
+    board.verify_proof(proof)
+    record = json.loads(board.get_proof(proof))
+    assert record["credential_registry"] == registry
+    assert board.get_issuer_verified_count(direct_alice, direct_bob) == 2
+
+
+def test_portable_claim_fails_closed_when_source_unavailable(portable, board, direct_vm, direct_alice, direct_bob):
+    _, rows, _ = portable
+    rows.clear()
+    direct_vm.sender = direct_bob
+    result = json.loads(board.get_eligibility("portable", direct_bob))
+    assert result["reason"] == "CREDENTIAL_SOURCE_UNAVAILABLE"
+    with direct_vm.expect_revert("CREDENTIAL_SOURCE_UNAVAILABLE"):
+        board.claim_task("portable")
+    assert json.loads(board.get_task("portable"))["status"] == "AVAILABLE"
+
+
+def test_portable_claim_cannot_borrow_another_issuers_count(portable, board, direct_vm, direct_bob, direct_charlie):
+    _, rows, _ = portable
+    rows[str(direct_charlie).lower(), str(direct_bob).lower()] = 12
+    direct_vm.sender = direct_bob
+    with direct_vm.expect_revert("CREDENTIAL_REQUIRED"):
+        board.claim_task("portable")
+
+
+def test_portable_tasks_require_studio_next(board, direct_vm, direct_alice):
+    direct_vm.sender = direct_alice
+    with direct_vm.expect_revert("CREDENTIAL_SOURCE_UNAVAILABLE"):
+        board.post_portable_task("portable", "Review", "Test", direct_alice, 1, NOW + 3600)
+
+
+def test_portable_tasks_require_positive_threshold(portable, board, direct_vm, direct_alice):
+    with direct_vm.expect_revert("positive credential threshold"):
+        board.post_portable_task("zero", "Review", "Test", direct_alice, 0, NOW + 3600)
 
 
 def test_success_unlocks_atomic_assignment_and_commits_policy(board, direct_vm, direct_alice, direct_bob):
@@ -167,4 +242,4 @@ def test_pagination_is_bounded_and_returns_newest_first(board, direct_vm, direct
     for limit in (0, 21):
         with direct_vm.expect_revert("page size"):
             board.list_board_tasks(0, limit)
-    assert board.get_protocol_version() == 4
+    assert board.get_protocol_version() == 5

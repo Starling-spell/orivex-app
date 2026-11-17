@@ -7,10 +7,11 @@ import { validateReceipt } from './proof';
 
 type BoardTask = { task_id: string; claim: string; criterion: string; requester: string;
   agent: string; status: string; credential_issuer: string; minimum_verified: number;
-  claim_deadline: number; board_task: boolean; proof_id: number };
+  claim_deadline: number; board_task: boolean; proof_id: number;
+  credential_registry?: string; qualifying_count?: number };
 type Page = { total: number; tasks: BoardTask[] };
-type Eligibility = { eligible: boolean; reason: string; verified_count: number; minimum_verified: number };
-type Action = 'post_task' | 'claim_task' | 'cancel_task';
+type Eligibility = { eligible: boolean; reason: string; verified_count: number; minimum_verified: number; credential_registry?: string };
+type Action = 'post_task' | 'post_portable_task' | 'claim_task' | 'cancel_task';
 type Pending = { hash: Hash; account: string; action: Action; taskId: string };
 const explorer = 'https://explorer-studio-dev.genlayer.com';
 const isAddress = (value: string) => /^0x[0-9a-f]{40}$/i.test(value);
@@ -18,12 +19,13 @@ const short = (value: string) => `${value.slice(0, 6)}…${value.slice(-4)}`;
 const reasons: Record<string, string> = {
   ELIGIBLE: 'You meet this task’s qualification policy.',
   CREDENTIAL_REQUIRED: 'Complete more successful tasks for the specified issuer to claim this work.',
+  CREDENTIAL_SOURCE_UNAVAILABLE: 'The previous registry could not be read. Check eligibility again before claiming.',
   REQUESTER_CANNOT_CLAIM: 'The requester cannot claim their own task.',
   NOT_AVAILABLE: 'This task has already been claimed, cancelled or completed.',
   EXPIRED: 'The deadline for claiming this task has passed.',
 };
 
-export function parseBoardPage(raw: unknown): Page {
+export function parseBoardPage(raw: unknown, portableRegistry?: string): Page {
   const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!value || !Number.isSafeInteger(value.total) || value.total < 0 || !Array.isArray(value.tasks)
       || value.tasks.length > 20 || value.tasks.length > value.total) throw new Error('Invalid task board response.');
@@ -33,6 +35,8 @@ export function parseBoardPage(raw: unknown): Page {
         || !isAddress(task.requester) || !isAddress(task.credential_issuer)
         || !['AVAILABLE', 'OPEN', 'SUBMITTED', 'SUCCESS', 'FAILED', 'INCONCLUSIVE', 'CANCELLED', 'EXPIRED'].includes(task.status)
         || !Number.isSafeInteger(task.minimum_verified) || task.minimum_verified < 0 || task.minimum_verified > 1000
+        || (task.credential_registry !== undefined && (!portableRegistry || task.minimum_verified === 0
+          || typeof task.credential_registry !== 'string' || task.credential_registry.toLowerCase() !== portableRegistry.toLowerCase()))
         || !Number.isSafeInteger(task.claim_deadline) || task.claim_deadline < 1
         || (!['AVAILABLE', 'EXPIRED', 'CANCELLED'].includes(task.status) && !isAddress(task.agent))) {
       throw new Error('Invalid onchain task or qualification policy.');
@@ -45,15 +49,16 @@ function parseEligibility(raw: unknown): Eligibility {
   const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!value || typeof value.eligible !== 'boolean' || !Object.hasOwn(reasons, value.reason)
       || value.eligible !== (value.reason === 'ELIGIBLE') || !Number.isSafeInteger(value.verified_count)
-      || value.verified_count < 0 || !Number.isSafeInteger(value.minimum_verified) || value.minimum_verified < 0) {
+      || value.verified_count < 0 || !Number.isSafeInteger(value.minimum_verified) || value.minimum_verified < 0
+      || (value.credential_registry !== undefined && (typeof value.credential_registry !== 'string' || !isAddress(value.credential_registry)))) {
     throw new Error('Could not verify eligibility from finalized contract state.');
   }
   if (value.eligible && value.verified_count < value.minimum_verified) throw new Error('Invalid eligibility threshold.');
   return value;
 }
 
-export function TaskBoard({ address, onUseTask }: {
-  address: `0x${string}`; onUseTask: (taskId: string) => Promise<void>;
+export function TaskBoard({ address, portableRegistry, onUseTask }: {
+  address: `0x${string}`; portableRegistry?: string; onUseTask: (taskId: string) => Promise<void>;
 }) {
   const [client] = useState(() => createClient({ chain: studioDevnet }));
   const [page, setPage] = useState<Page>({ total: 0, tasks: [] });
@@ -71,7 +76,7 @@ export function TaskBoard({ address, onUseTask }: {
   const [pending, setPending] = useState<Pending | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [draft, setDraft] = useState({ id: '', claim: '', criterion: '', issuer: '', minimum: '0', deadline: '' });
+  const [draft, setDraft] = useState({ id: '', claim: '', criterion: '', issuer: '', minimum: '0', deadline: '', portable: false });
   const lock = useRef(false);
   const storageKey = `orivex:board:61997:${address.toLowerCase()}:pending`;
   const working = loading || checking || posting || claiming || cancelling || resuming;
@@ -84,7 +89,7 @@ export function TaskBoard({ address, onUseTask }: {
     if (!saved) return null;
     const value = JSON.parse(saved);
     if (!/^0x[0-9a-f]{64}$/i.test(value.hash) || !isAddress(value.account)
-        || !['post_task', 'claim_task', 'cancel_task'].includes(value.action) || typeof value.taskId !== 'string') {
+        || !['post_task', 'post_portable_task', 'claim_task', 'cancel_task'].includes(value.action) || typeof value.taskId !== 'string') {
       throw new Error('The saved transaction record is invalid. Inspect it before sending another transaction.');
     }
     return value;
@@ -92,8 +97,11 @@ export function TaskBoard({ address, onUseTask }: {
   async function refresh(nextOffset = offset) {
     setLoading(true);
     try {
-      if (Number(await read('get_protocol_version', [])) !== 4) throw new Error('This deployment does not support the task board.');
-      const next = parseBoardPage(await read('list_board_tasks', [nextOffset, 20]));
+      if (Number(await read('get_protocol_version', [])) !== (portableRegistry ? 5 : 4)) throw new Error('This deployment does not match the task board.');
+      if (portableRegistry && String(await read('get_portable_registry', [])).toLowerCase() !== portableRegistry.toLowerCase()) {
+        throw new Error('The credential registry does not match this deployment.');
+      }
+      const next = parseBoardPage(await read('list_board_tasks', [nextOffset, 20]), portableRegistry);
       setPage(next); setOffset(nextOffset); setEligibility(null); setHasLoaded(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load the task board.'); }
     finally { setLoading(false); }
@@ -108,7 +116,10 @@ export function TaskBoard({ address, onUseTask }: {
     try {
       const wallet = await studioWalletWriter(); setAccount(wallet.account);
       const result = parseEligibility(await read('get_eligibility', [selected.task_id, wallet.account]));
-      if (result.minimum_verified !== selected.minimum_verified) throw new Error('Eligibility policy changed. Refresh the task board.');
+      if (result.minimum_verified !== selected.minimum_verified
+          || result.credential_registry?.toLowerCase() !== selected.credential_registry?.toLowerCase()) {
+        throw new Error('Eligibility policy changed. Refresh the task board.');
+      }
       setEligibility(result);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not check your wallet.'); }
     finally { lock.current = false; setChecking(false); }
@@ -127,12 +138,12 @@ export function TaskBoard({ address, onUseTask }: {
     localStorage.removeItem(storageKey); setPending(null); setAccount(record.account);
     await refresh(0); setSelectedId(record.taskId);
     setMessage(record.action === 'claim_task' ? 'Assignment finalized. Continue to evidence submission below.'
-      : record.action === 'post_task' ? 'Task published. Its terms and qualification policy are fixed.' : 'Unclaimed task cancelled.');
+      : record.action === 'cancel_task' ? 'Unclaimed task cancelled.' : 'Task published. Its terms and qualification policy are fixed.');
   }
   async function transact(action: Action, taskId: string, args: (wallet: string) => any[]) {
     if (lock.current) return;
     lock.current = true; setError('');
-    const setBusy = action === 'post_task' ? setPosting : action === 'claim_task' ? setClaiming : setCancelling;
+    const setBusy = action === 'claim_task' ? setClaiming : action === 'cancel_task' ? setCancelling : setPosting;
     setBusy(true);
     try {
       const previous = readPending();
@@ -166,7 +177,12 @@ export function TaskBoard({ address, onUseTask }: {
         || (draft.issuer && !isAddress(draft.issuer))) {
       setError('Enter valid task terms, an issuer address, a 0–1000 threshold and a claim deadline within 30 days.'); return;
     }
-    void transact('post_task', draft.id, wallet => [draft.id, draft.claim.trim(), draft.criterion.trim(), draft.issuer || wallet, minimum, deadline]);
+    if (draft.portable && (!portableRegistry || minimum < 1)) {
+      setError('Set a threshold of at least one to use credentials from the previous board.');
+      return;
+    }
+    const action = draft.portable ? 'post_portable_task' : 'post_task';
+    void transact(action, draft.id, wallet => [draft.id, draft.claim.trim(), draft.criterion.trim(), draft.issuer || wallet, minimum, deadline]);
   }
   return <section className="task-board" id="task-board" aria-labelledby="board-title">
     <div className="lab-heading"><div><h3 id="board-title">Find your next verified task.</h3>
@@ -187,7 +203,9 @@ export function TaskBoard({ address, onUseTask }: {
       <h4>{selected.claim}</h4><p>{selected.criterion}</p>
       <dl><dt>Requester</dt><dd><a href={`${explorer}/address/${selected.requester}`} target="_blank" rel="noreferrer" title={selected.requester}>{selected.requester}</a></dd>
         <dt>Trusted credential issuer</dt><dd><a href={`${explorer}/address/${selected.credential_issuer}`} target="_blank" rel="noreferrer">{selected.credential_issuer}</a></dd>
+        {selected.credential_registry && <><dt>Credential source</dt><dd><a href={`${explorer}/address/${selected.credential_registry}`} target="_blank" rel="noreferrer">Previous Orivex board (v4)</a></dd></>}
         <dt>Required successful tasks from this issuer</dt><dd>{selected.minimum_verified}</dd>
+        {selected.credential_registry && Number.isSafeInteger(selected.qualifying_count) && <><dt>Verified credentials at claim</dt><dd>{selected.qualifying_count}</dd></>}
         <dt>Claim by</dt><dd>{new Date(selected.claim_deadline * 1000).toLocaleString()} · your local time</dd>
         {selected.agent && <><dt>Assigned agent</dt><dd><a href={`${explorer}/address/${selected.agent}`} target="_blank" rel="noreferrer">{selected.agent}</a></dd></>}</dl>
       <div className="lab-actions"><button className="btn btn-ghost" disabled={working || Boolean(pending) || selected.status !== 'AVAILABLE'} onClick={check}>{checking ? 'Checking wallet…' : 'Connect wallet / check eligibility'}</button>
@@ -198,7 +216,7 @@ export function TaskBoard({ address, onUseTask }: {
         {['OPEN', 'SUBMITTED'].includes(selected.status) && <button className="btn btn-primary" disabled={working || Boolean(pending)} onClick={() => {
           void onUseTask(selected.task_id).catch(cause => setError(cause instanceof Error ? cause.message : 'Could not load the claimed task.'));
         }}>Continue to evidence</button>}</div>
-      {eligibility && <p role="status">{reasons[eligibility.reason]} Your issuer-specific count: <strong>{eligibility.verified_count} / {eligibility.minimum_verified}</strong>.</p>}
+      {eligibility && <p role="status">{reasons[eligibility.reason]} {eligibility.reason !== 'CREDENTIAL_SOURCE_UNAVAILABLE' && <>Your issuer-specific count: <strong>{eligibility.verified_count} / {eligibility.minimum_verified}</strong>.</>}</p>}
       {account && <p>Checked wallet: <a href={`${explorer}/address/${account}`} title={account} target="_blank" rel="noreferrer">{short(account)}</a></p>}
     </article>}</div>
     <details><summary>Post an open task</summary><p>Fix the terms before an agent claims. Cancellation is possible only while work remains unclaimed. Claim deadlines do not expire existing assignments.</p>
@@ -208,7 +226,14 @@ export function TaskBoard({ address, onUseTask }: {
         <label>Task claim<textarea aria-label="Task claim" required maxLength={2048} value={draft.claim} onChange={event => setDraft({ ...draft, claim: event.target.value })} /></label>
         <label>Task acceptance criterion<textarea aria-label="Task acceptance criterion" required maxLength={2048} value={draft.criterion} onChange={event => setDraft({ ...draft, criterion: event.target.value })} /></label>
         <label>Trusted issuer address<input placeholder="Defaults to connected requester" value={draft.issuer} onChange={event => setDraft({ ...draft, issuer: event.target.value.trim() })} /></label>
-        <label>Required issuer-verified tasks<input required type="number" min="0" max="1000" step="1" value={draft.minimum} onChange={event => setDraft({ ...draft, minimum: event.target.value })} /></label>
+        <label>Required issuer-verified tasks<input required type="number" min={draft.portable ? 1 : 0} max="1000" step="1" value={draft.minimum} onChange={event => setDraft({ ...draft, minimum: event.target.value })} /></label>
+        {portableRegistry && <label>Credential source<select value={draft.portable ? 'portable' : 'local'} onChange={event => {
+          const portable = event.target.value === 'portable';
+          setDraft({ ...draft, portable, minimum: portable && Number(draft.minimum) < 1 ? '1' : draft.minimum });
+        }}>
+          <option value="local">This board</option>
+          <option value="portable">Previous Orivex board (v4)</option>
+        </select></label>}
       </div><div className="lab-actions"><button type="button" className="btn btn-ghost" disabled={working} onClick={() => setDraft({ ...draft,
         id: `orivex:board:${crypto.randomUUID()}`, claim: 'The document permits software redistribution with its notices preserved.',
         criterion: 'SUCCESS only if the pinned license grants distribution rights and requires preserving the copyright and permission notice.',
@@ -219,6 +244,6 @@ export function TaskBoard({ address, onUseTask }: {
     {pending && <div className="tx-link"><a href={`${explorer}/tx/${pending.hash}`} target="_blank" rel="noreferrer">Inspect saved transaction {short(pending.hash)}</a>
       <button className="btn btn-ghost" disabled={working} onClick={resume}>{resuming ? 'Checking consensus…' : 'Check pending transaction'}</button></div>}
     {error && <p className="lab-error" role="alert">{error}</p>}
-    <p className="board-scope">Counts include only SUCCESS proofs in this deployment from the chosen issuer. Other issuers and historical v3 credentials cannot satisfy this policy. Distinct wallets do not prove independent owners.</p>
+    <p className="board-scope">Qualifications use SUCCESS proofs from the offer’s trusted issuer and credential source.</p>
   </section>;
 }

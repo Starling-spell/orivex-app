@@ -58,6 +58,12 @@ That accepted v3 proof remains available in the [historical deployment manifest]
 
 The old StudioNet 61999 manifests and examples are historical only; they are not loaded by the current Lab. The protocol-fee estimate is included in every Studio Next write. Separate wallets do not establish independent real-world identities. GenLayer task credentials do not settle Base certificates or payments.
 
+## Portable work credentials (milestone v2)
+
+The new board can qualify agents using finalized SUCCESS credentials from the
+previous Orivex registry. See the [implementation, deployment evidence and
+verification walkthrough](docs/MILESTONE-V2.md).
+
 ## Credential-gated task board (milestone v1)
 
 The [live task board](https://orivexapp.vercel.app/#deploy) adds open assignment:

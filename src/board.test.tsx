@@ -14,6 +14,7 @@ const key = `orivex:board:61997:${address}:pending`;
 let account: string;
 let task: any;
 let eligibility: any;
+let registry: string | undefined;
 const receipt = () => ({ statusName: 'FINALIZED', txExecutionResultName: 'FINISHED_WITH_RETURN',
   leader_only: false, result_name: 'MAJORITY_AGREE', to_address: address, from_address: account,
   consensus_data: { leader_receipt: [{ mode: 'leader', execution_result: 'SUCCESS' }] } });
@@ -21,13 +22,15 @@ beforeEach(() => {
   vi.clearAllMocks(); localStorage.clear();
   Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
   account = agent;
+  registry = undefined;
   task = { task_id: 'board-1', claim: 'Review a license', criterion: 'Check distribution rights', requester,
     credential_issuer: requester, minimum_verified: 1, board_task: true, status: 'AVAILABLE', agent: '',
     claim_deadline: Math.floor(Date.now() / 1000) + 86400, proof_id: 0 };
   eligibility = { eligible: true, reason: 'ELIGIBLE', verified_count: 1, minimum_verified: 1 };
   rpc.wallet.mockImplementation(async () => ({ account, client: rpc }));
   rpc.readContract.mockImplementation(async ({ functionName }: any) => {
-    if (functionName === 'get_protocol_version') return 4;
+    if (functionName === 'get_protocol_version') return registry ? 5 : 4;
+    if (functionName === 'get_portable_registry') return registry;
     if (functionName === 'list_board_tasks') return JSON.stringify({ total: 1, tasks: [task] });
     if (functionName === 'get_eligibility') return JSON.stringify(eligibility);
     throw new Error('RPC unavailable');
@@ -41,7 +44,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 async function open() {
-  render(<TaskBoard address={address} onUseTask={vi.fn()} />);
+  render(<TaskBoard address={address} portableRegistry={registry} onUseTask={vi.fn()} />);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh task board' }).hasAttribute('disabled')).toBe(false));
 }
 async function check() {
@@ -113,4 +116,29 @@ it('rejects malformed board policy responses', () => {
   expect(() => parseBoardPage({ total: 1, tasks: [{ ...task, minimum_verified: -1 }] })).toThrow();
   expect(() => parseBoardPage({ total: 1, tasks: [{ ...task, requester: 'not-an-address' }] })).toThrow();
   expect(() => parseBoardPage({ total: 0, tasks: [task] })).toThrow();
+});
+it('uses the pinned registry in eligibility and refuses an RPC policy substitution', async () => {
+  registry = `0x${'33'.repeat(20)}`;
+  task = { ...task, credential_registry: registry };
+  eligibility = { ...eligibility, credential_registry: address };
+  await open(); await check();
+  expect(screen.getByRole('link', { name: 'Previous Orivex board (v4)' }).getAttribute('href')).toContain(registry);
+  expect(screen.getByRole('alert').textContent).toContain('Eligibility policy changed');
+  expect(screen.getByRole('button', { name: 'Claim this task' }).hasAttribute('disabled')).toBe(true);
+  eligibility = { ...eligibility, credential_registry: registry };
+  await check();
+  expect(screen.getByRole('button', { name: 'Claim this task' }).hasAttribute('disabled')).toBe(false);
+});
+it('publishes a portable offer with the required threshold and no caller-supplied registry', async () => {
+  registry = `0x${'33'.repeat(20)}`;
+  account = requester;
+  await open();
+  fireEvent.click(screen.getByText('Post an open task'));
+  fireEvent.click(screen.getByRole('button', { name: 'Use license task template' }));
+  fireEvent.change(screen.getByLabelText('Credential source'), { target: { value: 'portable' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Publish open task' }));
+  await waitFor(() => expect(rpc.writeContract).toHaveBeenCalledWith(expect.objectContaining({
+    address, functionName: 'post_portable_task',
+    args: [expect.any(String), expect.any(String), expect.any(String), requester, 1, expect.any(Number)],
+  })));
 });
