@@ -81,9 +81,15 @@ export function TaskBoard({ address, portableRegistry, onUseTask }: {
   const storageKey = `orivex:board:61997:${address.toLowerCase()}:pending`;
   const working = loading || checking || posting || claiming || cancelling || resuming;
   const selected = page.tasks.find(task => task.task_id === selectedId) ?? page.tasks[0];
-  const read = (functionName: string, args: any[]) => client.readContract({
-    transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName, args,
-  });
+  async function read(functionName: string, args: any[]) {
+    try {
+      return await client.readContract({
+        transactionHashVariant: TransactionHashVariant.LATEST_FINAL, address, functionName, args,
+      });
+    } catch {
+      throw new Error('Studio Next RPC unavailable. Refresh the task board to retry.');
+    }
+  }
   function readPending(): Pending | null {
     const saved = localStorage.getItem(storageKey);
     if (!saved) return null;

@@ -107,9 +107,10 @@ it('recovers a wallet rejection without writing', async () => {
   expect(rpc.writeContract).not.toHaveBeenCalled();
 });
 it('does not turn an RPC failure into an empty board claim', async () => {
-  rpc.readContract.mockRejectedValue(new Error('RPC unavailable'));
+  rpc.readContract.mockRejectedValue(new Error('Provider diagnostic details'));
   render(<TaskBoard address={address} onUseTask={vi.fn()} />);
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('RPC unavailable'));
+  expect(screen.getByRole('alert').textContent).not.toContain('Provider diagnostic details');
   expect(screen.queryByText(/No tasks posted yet/)).toBeNull();
 });
 it('rejects malformed board policy responses', () => {

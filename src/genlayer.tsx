@@ -85,9 +85,10 @@ export function AgentLab() {
         if (await hash(canonicalProof(item.proof)) !== item.proof.proof_hash) throw new Error('Saved proof hash mismatch.');
       }
       const latest = await loadLatestOnchain(records.map((item: Example) => item.proofId));
-      if (upgraded) await loadVerifiedDirectory();
       setExamples(latest ? [smoke, ...records, latest] : [smoke, ...records]);
-      setMessage(isPortableBoard && !latest ? 'Portable credential receipt loaded. Recheck to read Studio Next now.' : latest
+      const directoryAvailable = !upgraded || await loadVerifiedDirectory().then(() => true, () => false);
+      setMessage(!directoryAvailable ? 'Studio Next could not load the verified work directory. Review the saved receipt below.'
+        : isPortableBoard && !latest ? 'Portable credential receipt loaded. Recheck to read Studio Next now.' : latest
         ? `${records.length} saved receipts loaded, plus live proof #${latest.proofId}. Select one, then recheck onchain.`
         : `${records.length} agent example receipts loaded. Select one, then recheck onchain.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load examples.'); }
@@ -342,7 +343,9 @@ export function AgentLab() {
           <dt>Evidence SHA-256</dt><dd><code>{proof.evidence_sha256}</code></dd>
           <dt>Proof SHA-256</dt><dd><code>{proof.proof_hash}</code></dd>
           {entry.verifyTx ? <><dt>Verification transaction</dt><dd><a href={`${explorer}/tx/${entry.verifyTx}`} target="_blank" rel="noreferrer">{entry.verifyTx}</a></dd></> : null}
-          {entry.verifyTx && !entry.id.startsWith('onchain-') ? <><dt>Receipt export</dt><dd><a href={`/receipts/${entry.verifyTx}.json`} target="_blank" rel="noreferrer">Open consensus receipt JSON ↗</a></dd></> : null}
+          {entry.verifyTx && !entry.id.startsWith('onchain-') ? <><dt>Receipt export</dt><dd><a href={isPortableBoard
+            ? 'https://github.com/Starling-spell/orivex-app/blob/76895b1/deployments/portable-board-studio-next.json'
+            : `/receipts/${entry.verifyTx}.json`} target="_blank" rel="noreferrer">{isPortableBoard ? 'Open milestone receipts ↗' : 'Open consensus receipt JSON ↗'}</a></dd></> : null}
           <dt>Contract</dt><dd><a href={`${explorer}/address/${manifest.address}`} target="_blank" rel="noreferrer">{manifest.address}</a></dd>
           <dt>Submitter</dt><dd><a href={`${explorer}/address/${proof.submitter}`} target="_blank" rel="noreferrer">{proof.submitter}</a></dd>
           {proof.requester && <><dt>Requester</dt><dd><a href={`${explorer}/address/${proof.requester}`} target="_blank" rel="noreferrer">{proof.requester}</a></dd><dt>Task</dt><dd>{proof.task_id}</dd><dt>Credential</dt><dd>{entry.credentialProofId === undefined ? 'Recheck onchain' : entry.credentialProofId === entry.proofId ? `Issued · proof #${entry.proofId}` : 'Not issued'}</dd><dt>Verified work count</dt><dd>{entry.verifiedCount ?? 'Recheck onchain'}</dd></>}
